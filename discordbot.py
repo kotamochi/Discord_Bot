@@ -1,5 +1,5 @@
-#インストールした discord.py を読み込む
 import discord
+import Chunithm_RandomSelect
 
 #自分のBotのアクセストークンに置き換えてください
 TOKEN = 'MTE0MzE3OTg4ODk4NDA2NDEzMA.G9Ukc5.JqEsDBOuEQgevpfVqqn1hACnwzeH_-wMP3mXtg'
@@ -53,6 +53,29 @@ async def on_message(message):
     if message.content.startswith('/vs'):
         comannd, user1, user2 = message.content.split(' ')
         await message.channel.send(f"{user1}と{user2}の対戦を開始します")
+        
+    #対戦を行うコマンド
+    if message.content.startswith('/チームコース'):
+        #渡されたコマンドを分割
+        comannd = message.content.split(' ')
+        
+        #譜面定数上下限を設定してる時
+        if len(comannd) == 3:
+            const1 = comannd[1]
+            const2 = comannd[2]
+            result = Chunithm_RandomSelect.Music_Select(const1, const2)
+        
+        #譜面定数の下限を設定している時
+        elif len(comannd) == 2:
+            const1 = comannd[1]
+            result = Chunithm_RandomSelect.Music_Select(const1)
+        
+        #譜面定数を設定していない時
+        else:
+            result = Chunithm_RandomSelect.Music_Select()
+        
+        #結果を表示
+        await message.channel.send(f"今回の課題曲は\n{result[0]}\n{result[1]}\n{result[2]}\nの三曲です!!")
         
 @client.event
 async def on_reaction_add(reaction, user):
