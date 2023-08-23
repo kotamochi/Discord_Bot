@@ -28,5 +28,8 @@ columns = ["Music_Title", "Genre", "Artist", "BPM", "MAS_Level", "MAS_Const", "U
 #カラム名を変更
 df.columns = columns
 
+#WE譜面を削除
+df.dropna(subset=["MAS_Level"], inplace=True)
+
 #csvに保存する
 df.to_csv("chunirec.csv", index=False)
