@@ -1,5 +1,7 @@
 import discord
+import math
 import Chunithm_RandomSelect
+import Arcaea_command
 
 #自分のBotのアクセストークンに置き換えてください
 TOKEN = 'MTE0MzE3OTg4ODk4NDA2NDEzMA.G9Ukc5.JqEsDBOuEQgevpfVqqn1hACnwzeH_-wMP3mXtg'
@@ -54,7 +56,7 @@ async def on_message(message):
         comannd, user1, user2 = message.content.split(' ')
         await message.channel.send(f"{user1}と{user2}の対戦を開始します")
         
-    #対戦を行うコマンド
+    #チームコースを作成する
     if message.content.startswith('/チームコース'):
         #渡されたコマンドを分割
         comannd = message.content.split(' ')
@@ -77,6 +79,29 @@ async def on_message(message):
         #結果を表示
         await message.channel.send(f"今回の課題曲は\n{result[0]}\n{result[1]}\n{result[2]}\nの三曲です!!")
         
+    #課題曲を作成する
+    if message.content.startswith('/a random'):
+        #渡されたコマンドを分割
+        comannd = message.content.split(' ')
+        
+        #譜面定数上下限を設定してる時
+        if len(comannd) == 4:
+            const1 = comannd[2]
+            const2 = comannd[3]
+            music, level_str = result = Arcaea_command.random_select(const1, const2)
+        
+        #譜面定数の下限を設定している時
+        elif len(comannd) == 3:
+            const1 = comannd[2]
+            music, level_str = result = Arcaea_command.random_select(const1)
+        
+        #譜面定数を設定していない時
+        else:
+            music, level_str = Arcaea_command.random_select()
+        
+        #ランダムで決まった曲を返信
+        await message.channel.send(f"課題曲:{music} FTR:{level_str}です!!")
+    
 @client.event
 async def on_reaction_add(reaction, user):
     #拍手のリアクションに対して、ぱちぱちを返す
