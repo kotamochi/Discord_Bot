@@ -2,7 +2,8 @@ import pandas as pd
 import random
 import math
 
-def random_select(const1=0, const2=12.0):
+def Random_Select_Const(const1="0", const2="12.0"):
+    
     #定数を決めていない時は全曲から選ぶ
     const1 = float(const1)
     const2 = float(const2)
@@ -13,6 +14,53 @@ def random_select(const1=0, const2=12.0):
     #楽曲数を取得
     df_music = df_music[df_music["FTR_Const"] >= const1]
     df_music = df_music[df_music["FTR_Const"] <= const2]
+    
+    #乱数の範囲を取得
+    music_num = len(df_music)
+
+    rand = random.randint(0,music_num-1)
+
+    #乱数から選ばれた楽曲を抽出
+    hit_music = df_music.iloc[rand]
+
+    #結果を保存
+    music = hit_music["Music_Title"]
+    level = hit_music["FTR_Level"]
+    
+    if level % 1 != 0.0:
+        level_str = str(math.floor(level)) + "+"
+    else:
+        level_str = str(math.floor(level))
+        
+    return music, level_str
+
+def Random_Select_Level(level1="0", level2="12"):
+    
+    #＋難易度が指定された時は.7表記に変更する
+    try:
+        #引き数を数値型に変換
+        level1 = float(level1)
+    except ValueError:
+        #引き数を数値型に変換
+        if level1[-1] == "+":
+            level1 = float(level1[:-1]) + 0.7
+    
+    try:        
+        level2 = float(level2)
+    except ValueError:
+        if level2[-1] == "+":
+            level2 = float(level2[:-1]) + 0.7
+        
+    #レベル指定がない時は全曲から選ぶ
+    if level2 == 12.0 and level1 != 0.0:
+        level2 = float(level1)
+    
+    #楽曲情報をデータフレームに読み込む
+    df_music = pd.read_csv("Arcaea_Music_Data.csv")
+    
+    #楽曲数を取得
+    df_music = df_music[df_music["FTR_Level"] >= level1]
+    df_music = df_music[df_music["FTR_Level"] <= level2]
     
     #乱数の範囲を取得
     music_num = len(df_music)
