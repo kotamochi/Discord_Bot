@@ -1,10 +1,14 @@
 import discord
-import math
+import json
 import Chunithm_RandomSelect
 import Arcaea_command
 
-#自分のBotのアクセストークンに置き換えてください
-TOKEN = 'MTE0MzE3OTg4ODk4NDA2NDEzMA.G9Ukc5.JqEsDBOuEQgevpfVqqn1hACnwzeH_-wMP3mXtg'
+#自分のBotのアクセストークンを取得
+with open("Discord_APIToken.json") as file:
+    token = json.load(file)
+
+#自分のBotのアクセストークン
+TOKEN = token["TokenKey"]
 
 #接続に必要なオブジェクトを生成
 client = discord.Client(intents=discord.Intents.all())
@@ -15,7 +19,7 @@ async def on_ready():
     #起動したらターミナルにログイン通知が表示される
     print('ログインしました')
 
-# 返信する非同期関数を定義 
+#メッセージ受信時に返信を返す処理
 async def reply(message):
     reply = f'{message.author.mention} にゃー！' # 返信メッセージの作成
     await message.channel.send(reply) # 返信メッセージを送信
@@ -101,7 +105,8 @@ async def on_message(message):
         
         #ランダムで決まった曲を返信
         await message.channel.send(f"課題曲:{music} FTR:{level_str}です!!")
-    
+
+#リアクション受信時に動作する処理
 @client.event
 async def on_reaction_add(reaction, user):
     #拍手のリアクションに対して、ぱちぱちを返す
@@ -113,5 +118,6 @@ async def on_reaction_remove(reaction, user):
     #拍手のリアクションに対して、ぱちぱちを返す
     if str(reaction.emoji) == '👏':
         await reaction.message.channel.send('しゅん...')
+
 #Botの起動とDiscordサーバーへの接続
-client.run(TOKEN)
+client.run(token=token["TokenKey"])
