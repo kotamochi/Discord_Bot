@@ -1,7 +1,6 @@
 import discord
 import json
 import Chunithm_RandomSelect
-import Arcaea_command
 
 #自分のBotのアクセストークンを取得
 with open("Discord_APIToken.json") as file:
@@ -82,29 +81,6 @@ async def on_message(message):
         
         #結果を表示
         await message.channel.send(f"今回の課題曲は\n{result[0]}\n{result[1]}\n{result[2]}\nの三曲です!!")
-        
-    #課題曲を作成する
-    if message.content.startswith('/a lvrand'):
-        #渡されたコマンドを分割
-        comannd = message.content.split(' ')
-        
-        #譜面定数上下限を設定してる時
-        if len(comannd) == 4:
-            level_low = comannd[2]
-            level_high = comannd[3]
-            music, level_str = result = Arcaea_command.Random_Select_Level(level_low, level_high)
-        
-        #譜面定数の下限を設定している時
-        elif len(comannd) == 3:
-            level = comannd[2]
-            music, level_str = result = Arcaea_command.Random_Select_Level(level)
-        
-        #譜面定数を設定していない時
-        else:
-            music, level_str = Arcaea_command.Random_Select_Level()
-        
-        #ランダムで決まった曲を返信
-        await message.channel.send(f"課題曲:{music} FTR:{level_str}です!!")
 
 #リアクション受信時に動作する処理
 @client.event
