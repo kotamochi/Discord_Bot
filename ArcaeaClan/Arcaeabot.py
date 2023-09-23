@@ -4,7 +4,7 @@ import discord
 import Arcaea_command
 
 #自分のBotのアクセストークンを取得
-with open("ArcaeabotKey.json") as file:
+with open("..\Discord_APIToken.json") as file:
     token = json.load(file)
 
 #自分のBotのアクセストークン
@@ -22,6 +22,9 @@ async def on_ready():
 #ID系統の設定
 MemberRole_ID = 1149393993159942214
 RandomSelect_CH = 1148058499520135198
+RandomBattle_CH = 1154008770737864714
+Creater_ID = 502838276294705162 #私のユーザーID
+Creater_RoomID = 1153650397634891807 #開発用チャンネルID
 
 #サーバー入室時にロールを付与する
 @client.event
@@ -63,46 +66,68 @@ async def on_message(message):
             except Exception:
                 await message.channel.send("コマンドが間違ってるかも。もう一度試してみて!")
 
+    #ランダム1v1チャンネル以外では反応しない
+    if message.channel.id == RandomBattle_CH or message.channel.id == Creater_RoomID:
         #1v1勝負をする
         if message.content.startswith('/a vs'):
             try:
-                #渡されたコマンドを分割
-                comannd = message.content.split(' ')
-                
-            
+                await Arcaea_command.Arcaea_RandomScoreBattle(client, message) #対戦用関数を実行      
             except Exception:
-                await message.channel.send("コマンドが間違ってるかも。もう一度試してみて!")
+                await message.channel.send("タイムアウト、もしくはコマンド不備により対戦が終了されました。") #トラブルがおこった際に表示
 
+        #ダブルス勝負をする
+        if message.content.startswith('/a 2vs2'):
+            try:
+                await Arcaea_command.Arcaea_DoublesScoreBattle(client, message) #対戦用関数を実行      
+            except Exception:
+                await message.channel.send("タイムアウト、もしくはコマンド不備により対戦が終了されました。") #トラブルがおこった際に表示
 
+        #EXスコア勝負
+        if message.content.startswith('/a ex'):
+            try:
+                await Arcaea_command.Arcaea_RandomScoreBattle(client, message) #対戦用関数を実行      
+            except Exception:
+                await message.channel.send("タイムアウト、もしくはコマンド不備により対戦が終了されました。") #トラブルがおこった際に表示
 
+        #戦績を確認する
+        if message.content == '/a log':
+            await Arcaea_command.User_Status(message)
+        
+    #戦績ファイルを出力する(開発者用)
+    if message.content == '/battlelog' and message.author.id == Creater_ID:
+        dm_channel = await message.author.create_dm()
+        await dm_channel.send(file=discord.File('BattleLog.csv'))
+
+    #ポテンシャル計算機(身内用)
+    if message.channel.id == 1071411461508841593:
         #ポテンシャルを計算する
-        #if message.content.startswith('/a pt'):
-        #    comannd = message.content.split(' ')
-        #    music_ls = []
-        #    try:
-        #        score = int(comannd[-1])
-        #        byd_flg = "FTR"
-        #        for i in range(len(comannd)-3):
-        #            music_ls.append(comannd[i+2])
+        if message.content.startswith('/a pt'):
+            comannd = message.content.split(' ')
+            music_ls = []
+            try:
+                score = int(comannd[-1])
+                byd_flg = "FTR"
+                for i in range(len(comannd)-3):
+                    music_ls.append(comannd[i+2])
 
-        #    except ValueError:
-        #        score = int(comannd[-2])
-        #        byd_flg = comannd[-1]
+            except ValueError:
+                score = int(comannd[-2])
+                byd_flg = comannd[-1]
 
-        #        for i in range(len(comannd)-4):
-        #            music_ls.append(comannd[i+2])
+                for i in range(len(comannd)-4):
+                    music_ls.append(comannd[i+2])
 
-        #    #listから曲名を作成
-        #    music = " ".join(music_ls)
+            #listから曲名を作成
+            music = " ".join(music_ls)
 
-        #    #ポテ計算を実行
-        #    potential, score_r, difficult = Arcaea_command.Potential_Score(music, score, byd_flg)
+            #ポテ計算を実行
+            potential, score_r, difficult = Arcaea_command.Potential_Score(music, score, byd_flg)
 
-        #    #返信文を作成
-        #    reply = f"Music:{music} ({difficult})\nScore:{score_r}\nPt:{potential}"
+            #返信文を作成
+            reply = f"Music:{music} ({difficult})\nScore:{score_r}\nPt:{potential}"
 
-        #    #メンションをつけて返信
-        #    await message.reply(reply)
+            #メンションをつけて返信
+            await message.reply(reply)
 
 try:
     client.run(TOKEN)
