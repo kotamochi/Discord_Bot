@@ -4,7 +4,7 @@ import discord
 import Arcaea_command
 
 #自分のBotのアクセストークンを取得
-with open("..\Discord_APIToken.json") as file:
+with open("ArcaeabotKey.json") as file:
     token = json.load(file)
 
 #自分のBotのアクセストークン
@@ -82,10 +82,10 @@ async def on_message(message):
             except Exception:
                 await message.channel.send("タイムアウト、もしくはコマンド不備により対戦が終了されました。") #トラブルがおこった際に表示
 
-        #EXスコア勝負
+        #EXスコア勝負(調整中)
         if message.content.startswith('/a ex'):
             try:
-                await Arcaea_command.Arcaea_RandomScoreBattle(client, message) #対戦用関数を実行      
+                await Arcaea_command.Arcaea_EXScoreBattle(client, message) #対戦用関数を実行      
             except Exception:
                 await message.channel.send("タイムアウト、もしくはコマンド不備により対戦が終了されました。") #トラブルがおこった際に表示
 
