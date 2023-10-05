@@ -87,7 +87,7 @@ async def Arcaea_RandomScoreBattle(client, message):
 
     #csvファイルに保存
     df_log = pd.read_csv("BattleLog.csv")
-    now_data = [[winner, loser, Drow_Flg]]
+    now_data = [[int(winner[2:-1]), int(loser[2:-1]), Drow_Flg]]
     df_now = pd.DataFrame(now_data, columns=["Winner", "Loser", "Drow_Flg"])
     df_log = pd.concat([df_log, df_now])
     df_log.to_csv("BattleLog.csv", index=False)
@@ -236,6 +236,13 @@ async def Arcaea_EXScoreBattle(client, message):
         await message.channel.send(f"結果は両者{player1_score} で引き分けです!!お疲れ様でした")
     else:
         await message.channel.send(f"{users[0]}: {player1_score}\n{users[1]}: {player2_score}\n\n勝者は{winner}さんでした!!お疲れ様でした!!")
+    
+    #csvファイルに保存
+    df_log = pd.read_csv("BattleLog_EXScore.csv")
+    now_data = [[int(winner[2:-1]), int(loser[2:-1]), Drow_Flg]]
+    df_now = pd.DataFrame(now_data, columns=["Winner", "Loser", "Drow_Flg"])
+    df_log = pd.concat([df_log, df_now])
+    df_log.to_csv("BattleLog_EXScore.csv", index=False)
     
 
 #1vs1で戦う時のフォーマット
@@ -410,36 +417,76 @@ async def EX_Score_Battle(user1, user2, name1, name2):
 
     
 #戦績を確認
-async def User_Status(message):
-    BattleLog = pd.read_csv("BattleLog.csv")
-    
-    userwins = BattleLog[BattleLog["Winner"] == message.author.id and BattleLog["Drow"] == False]
-    userloses = BattleLog[BattleLog["Loser"] == message.author.id and BattleLog["Drow"] == False]
-    userdrow = BattleLog[(BattleLog["Winner"] == message.author.id or BattleLog["Loser"] == message.author.id) and BattleLog["Drow"] == True]
-    
-    userdata = pd.concat([userwins, userloses])
-    
-    for _, data in userdata.iterrows():
-        #勝者と敗者のメンションIDを取得
-        winner = data["Winner"]
-        loser = data["Loser"]
+async def User_Status(client, message, file_path):
+    BattleLog = pd.read_csv(file_path)
 
-        if data["Drow_Flg"] == True:
-            pass
-        elif int(winner[2:-1]) == message.author.id:
-            wins += 1
-        elif int(loser[2:-1]) == message.author.id:
-            loses += 1
-    await message.channel.send(f"戦績:win {wins}-{loses} lose")
+    BattleLog["Winner"] = BattleLog["Winner"].astype("Int64")
+    BattleLog["Loser"] = BattleLog["Loser"].astype("Int64")
+    wins = BattleLog[BattleLog["Winner"] == message.author.id]
+    loses = BattleLog[BattleLog["Loser"] == message.author.id]
+    userdata = pd.concat([wins, loses])
+
     
-def count(data):
+    #引き分け行に前処理を行う
+    idx = 0
+    for recode in userdata.itertuples():
+        if recode.Drow_Flg == True:
+            if recode.Winner == message.author.id:
+                pass
+            else:
+                userdata.loc[idx, "Loser"] == userdata.loc[idx, "Winner"]
+                userdata.loc[idx, "Winner"] == message.author.id
+
     #重複行を纏める
-    margedata = data.groupby().copy()
+    margedata = userdata.drop_duplicates()
+    #結果を保存するデータフレームを作成
+    result = pd.DataFrame(columns=["User"])
     
-    for _, recode in data.iterrows():
-        print(0)
-            
-        
+    #対戦した相手をUserとしてデータフレームに登録していく
+    for idx, recode in margedata.iterrows():
+        if recode["Winner"] == message.author.id: #勝ってたとき
+            if (result["User"] == recode["Loser"]).any():
+                pass
+            else:
+                new_user = pd.DataFrame({"User":[recode["Loser"]]})
+                result = pd.concat([result, new_user])
+        elif recode.Loser == message.author.id: #負けてたとき
+            if (result["User"] == recode["Winner"]).any():
+                pass
+            else:
+                new_user = pd.DataFrame({"User":[recode["Winner"]]})
+                result = pd.concat([result, new_user])
+
+
+    #勝敗結果を記録するために列を追加、インデックスを追加
+    result = result.assign(Win=0, Lose=0, Drow=0)
+    result.index = range(len(result))
+
+    #与えられたデータを上から流していく
+    for _, recode in userdata.iterrows():
+        if recode["Winner"] == message.author.id and recode["Drow_Flg"] == False: #入力者が勝者の場合
+            idx = result.index[result["User"] == recode["Loser"]]
+            result.loc[idx, "Win"] += 1 
+        elif recode["Loser"] == message.author.id and recode["Drow_Flg"] == False: #入力者が敗者の場合
+            idx = result.index[result["User"] == recode["Winner"]]
+            result.loc[idx,"Lose"] += 1
+        elif recode["Drow_Flg"] == True:
+            if recode["Winner"] == message.author.id:
+                idx = result.index[result["User"] == recode["Loser"]]
+                result.loc[idx,"Drow"] += 1
+            elif recode["Loser"] == message.author.id:
+                idx = result.index[result["User"] == recode["Winner"]]
+                result.loc[idx,"Drow"] += 1
+
+    #名前を表示名に変更する
+    for idx, recode in result.iterrows():
+        result.loc[idx, "User"] = (await client.fetch_user(recode["User"])).display_name
+
+    
+
+    #集計が終了したデータを勝利→引き分け→敗北にソートして返す
+    return result.sort_values(by=["Win", "Drow", "Lose"])
+
 
 #現在使用していない機能
 #ポテンシャル値の計算
