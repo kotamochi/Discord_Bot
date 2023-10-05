@@ -68,35 +68,75 @@ async def on_message(message):
 
     #ランダム1v1チャンネル以外では反応しない
     if message.channel.id == RandomBattle_CH or message.channel.id == Creater_RoomID:
-        #1v1勝負をする
+        #1v1勝負
         if message.content.startswith('/a vs'):
             try:
                 await Arcaea_command.Arcaea_RandomScoreBattle(client, message) #対戦用関数を実行      
             except Exception:
                 await message.channel.send("タイムアウト、もしくはコマンド不備により対戦が終了されました。") #トラブルがおこった際に表示
 
-        #ダブルス勝負をする
+        #ダブルス勝負
         if message.content.startswith('/a 2vs2'):
             try:
                 await Arcaea_command.Arcaea_DoublesScoreBattle(client, message) #対戦用関数を実行      
             except Exception:
                 await message.channel.send("タイムアウト、もしくはコマンド不備により対戦が終了されました。") #トラブルがおこった際に表示
 
-        #EXスコア勝負(調整中)
+        #EXスコア勝負
         if message.content.startswith('/a ex'):
-            try:
-                await Arcaea_command.Arcaea_EXScoreBattle(client, message) #対戦用関数を実行      
-            except Exception:
-                await message.channel.send("タイムアウト、もしくはコマンド不備により対戦が終了されました。") #トラブルがおこった際に表示
-
+            if len(message.content.split('')) == 4:
+                try:
+                    await Arcaea_command.Arcaea_EXScoreBattle(client, message) #対戦用関数を実行      
+                except Exception:
+                    await message.channel.send("タイムアウト、もしくはコマンド不備により対戦が終了されました。") #トラブルがおこった際に表示
+            
         #戦績を確認する
         if message.content == '/a log':
-            await Arcaea_command.User_Status(message)
+            #Score勝負の結果集計
+            file_1vs1_log = "BattleLog.csv"
+            battledata = await Arcaea_command.User_Status(client, message, file_1vs1_log)
+            user = message.author #入力したユーザー名を取得
+
+            #表示用に戦績を整形する
+            result = ""
+            for _, battle_recode in battledata.iterrows():
+                result += f"**{battle_recode['User']} || W:{battle_recode['Win']}-{battle_recode['Lose']}:L (D:{battle_recode['Drow']})**\n"
+
+            #埋め込みメッセージを作成
+            embed = discord.Embed(title="ランダム1v1",description="ランダム1vs1の過去の戦績です")
+            embed.set_author(name=f"{user.display_name}の戦績",icon_url=user.avatar.url)
+
+            #戦績が一件もなかった時は該当なしにする
+            if result == "": 
+                embed.add_field(name="通常スコアバトル", value="該当なし", inline=False)
+            else:
+                embed.add_field(name="通常スコアバトル", value=result, inline=False)
+
+            #EXScore勝負の結果集計
+            file_EX1vs1_log = "BattleLog_EXScore.csv"
+            battledata = await Arcaea_command.User_Status(client, message, file_EX1vs1_log)
+
+            #表示用に戦績を整形する
+            result = ""
+            for _, battle_recode in battledata.iterrows():
+                result += f"**{battle_recode['User']} || W:{battle_recode['Win']}-{battle_recode['Lose']}:L (D:{battle_recode['Drow']})**\n"
+
+            #戦績が一件もなかった時は該当なしにする
+            if result == "":
+                embed.add_field(name="EXスコアバトル", value="該当なし", inline=False)
+            else:
+                #埋め込みメッセージを作成
+                embed.add_field(name="EXスコアバトル", value=result, inline=False)
+
+            #戦績を送信
+            await message.reply(embed=embed)
+
         
     #戦績ファイルを出力する(開発者用)
     if message.content == '/battlelog' and message.author.id == Creater_ID:
         dm_channel = await message.author.create_dm()
         await dm_channel.send(file=discord.File('BattleLog.csv'))
+
 
     #ポテンシャル計算機(身内用)
     if message.channel.id == 1071411461508841593:
