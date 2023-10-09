@@ -84,7 +84,7 @@ async def on_message(message):
 
         #EXスコア勝負
         if message.content.startswith('/a ex'):
-            if len(message.content.split('')) == 4:
+            if len(message.content.split(' ')) == 4:
                 try:
                     await Arcaea_command.Arcaea_EXScoreBattle(client, message) #対戦用関数を実行      
                 except Exception:
