@@ -19,9 +19,9 @@ async def on_ready():
     print('ログインしました')
 
 #メッセージ受信時に返信を返す処理
-async def reply(message):
-    reply = f'{message.author.mention} にゃー！' # 返信メッセージの作成
-    await message.channel.send(reply) # 返信メッセージを送信
+#async def reply(message):
+#    reply = f'{message.author.mention} にゃー！' # 返信メッセージの作成
+#    await message.channel.send(reply) # 返信メッセージを送信
 
 #メッセージ受信時に動作する処理
 @client.event
@@ -50,9 +50,9 @@ async def on_message(message):
         await message.channel.send("ス〇イピースりくす", file=discord.File(r"C:\Users\kotam\OneDrive\画像\oishi-yami-.jpg"))
     if message.content == 'こゃーん':
         await message.channel.send("こねこねこ")
-    #話しかけられたかの判定
-    if client.user in message.mentions:
-        await reply(message)
+    ##話しかけられたかの判定
+    #if client.user in message.mentions:
+    #    await reply(message)
         
     #対戦を行うコマンド
     if message.content.startswith('/vs'):
@@ -81,19 +81,22 @@ async def on_message(message):
         
         #結果を表示
         await message.channel.send(f"今回の課題曲は\n{result[0]}\n{result[1]}\n{result[2]}\nの三曲です!!")
+        
+    if message.content.startswith('/対戦'):
+        #スレッドを作成
+        thread = await message.channel.create_thread(name="Test")
+        #await Arcaea_command.Arcaea_RandomScoreBattle(client, message)
+        
+        #セッションを管理
+        with open("session.json", "r") as file:
+            session_dic = json.load(file)
+            session_num = len(session_dic)
+        #スレッドidを取得して、現在実行中のスレッドを管理する
+        session = thread.id
+        session_dic[int(user1[2:-1])] = session
+        session_dic[int(user2[2:-1])] = session
+        await Chunithm_RandomSelect.test(client, message, thread)
 
-#リアクション受信時に動作する処理
-@client.event
-async def on_reaction_add(reaction, user):
-    #拍手のリアクションに対して、ぱちぱちを返す
-    if str(reaction.emoji) == '👏':
-        await reaction.message.channel.send('ぱちぱち')
-
-@client.event
-async def on_reaction_remove(reaction, user):
-    #拍手のリアクションに対して、ぱちぱちを返す
-    if str(reaction.emoji) == '👏':
-        await reaction.message.channel.send('しゅん...')
 
 #Botの起動とDiscordサーバーへの接続
 client.run(token=token["TokenKey"])

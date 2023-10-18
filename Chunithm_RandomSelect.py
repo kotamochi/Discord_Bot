@@ -1,5 +1,6 @@
 import pandas as pd 
 import random
+import asyncio
 
 #チームコースの曲を決める関数
 def Music_Select(const1=0, const2=15.4):
@@ -31,3 +32,14 @@ def Music_Select(const1=0, const2=15.4):
         music_list.append(hit_music["Music_Title"])
 
     return music_list
+
+
+async def test(client, thread, session_dic):
+    await thread.send("テスト")
+    
+    def a(m):
+        if m.channel.id == session_dic[m.author.id]:
+            return True
+    
+    await client.wait_for('message', check=a, timeout=600)
+    await thread.send("テスト2")

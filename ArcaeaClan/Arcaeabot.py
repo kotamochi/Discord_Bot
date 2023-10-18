@@ -4,7 +4,7 @@ import discord
 import Arcaea_command
 
 #自分のBotのアクセストークンを取得
-with open("ArcaeabotKey.json") as file:
+with open("C:\python\Discord_Bot\Discord_APIToken.json") as file:
     token = json.load(file)
 
 #自分のBotのアクセストークン
@@ -69,11 +69,11 @@ async def on_message(message):
     #ランダム1v1チャンネル以外では反応しない
     if message.channel.id == RandomBattle_CH or message.channel.id == Creater_RoomID:
         #1v1勝負
-        if message.content.startswith('/a vs'):
-            try:
-                await Arcaea_command.Arcaea_RandomScoreBattle(client, message) #対戦用関数を実行      
-            except Exception:
-                await message.channel.send("タイムアウト、もしくはコマンド不備により対戦が終了されました。") #トラブルがおこった際に表示
+        if message.content.startswith('/b vs'):
+            #try:
+            await Arcaea_command.Arcaea_RandomScoreBattle(client, message) #対戦用関数を実行      
+            #except Exception:
+            #    await message.channel.send("タイムアウト、もしくはコマンド不備により対戦が終了されました。") #トラブルがおこった際に表示
 
         #ダブルス勝負
         if message.content.startswith('/a 2vs2'):
