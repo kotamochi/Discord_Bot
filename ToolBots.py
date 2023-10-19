@@ -23,26 +23,33 @@ async def on_ready():
 #メッセージに対して反応する
 @client.event
 async def on_message(message):
+    global read
+    global voice_client
     #メッセージ送信者がBotだった場合は無視する
     if message.author.bot:
         return
-    #「/neko」と発言したら「にゃーん」が返る処理
+    
+    #音声チャンネルに接続して読み上げ開始
     if message.content == '/reading':
         read = Reading.VoiceBox()
         vc = message.author.voice.channel
-        await vc.connect()
+        voice_client = await vc.connect()
         source = FFmpegPCMAudio(r"Voice\connectstart.wav")
         message.guild.voice_client.play(source)
         
     if message.content == '/stop':
         vc = message.author.voice.channel
-        await vc.disconnect()
+        await voice_client.disconnect()
+        del read #接続インスタンスを破棄
     
-    #読み上げインスタンスが起動している時
-    if read:
-        #テキストを読み上げる
-        await read.ReadingText(message.content)
-    else:
+    #読み上げインスタンスが起動しているか確認
+    try:
+        if message.content[0] == "/": #コマンドは読み上げない
+            pass
+        else:
+            #テキストを読み上げる
+            await read.ReadingText(message, voice_client)
+    except NameError:
         pass
 
 #Botの起動とDiscordサーバーへの接続

@@ -1,8 +1,7 @@
 import requests
 import json
 import wave
-import discord
-from discord.channel import VoiceChannel
+import asyncio
 from discord.player import FFmpegPCMAudio
 
 class VoiceBox():
@@ -15,7 +14,7 @@ class VoiceBox():
     
     #音声変換を呼び出す設定
     async def CreateQuery(self, message):
-        params = (('text', message),
+        params = (('text', message.content),
                   ('speaker', self.sepeker_id))
         query = requests.post(f'http://{self.host}:{self.port}/audio_query',
                               params=params)
@@ -41,13 +40,20 @@ class VoiceBox():
     
     
     #読み上げbotの実行部分
-    async def ReadingText(self, message):
+    async def ReadingText(self, message, voice_client):
         #テキストを音声作成のクエリにする
         query, params = await self.CreateQuery(message)
         
         #合成音声を作成
         await self.Get_ReadingAudio(query, params)
         
-        #読み上げる
-        audio = FFmpegPCMAudio(r"Voice\textread.wav")
-        message.voice_client.play(audio)
+        #前の文章が読み終わっていることを確認して読み上げる
+        while True:
+            if not voice_client.is_playing():
+                audio = FFmpegPCMAudio(r"Voice\textread.wav")
+                message.guild.voice_client.play(audio) #読み上げ
+                #確認処理を抜ける
+                break
+                #0.3秒待って再度確認
+            else:
+                await asyncio.sleep(0.3)
