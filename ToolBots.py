@@ -25,6 +25,7 @@ async def on_ready():
 async def on_message(message):
     global read
     global voice_client
+    global channel_id
     #メッセージ送信者がBotだった場合は無視する
     if message.author.bot:
         return
@@ -36,6 +37,7 @@ async def on_message(message):
         voice_client = await vc.connect()
         source = FFmpegPCMAudio(r"Voice\connectstart.wav")
         message.guild.voice_client.play(source)
+        channel_id = message.channel.id
         
     if message.content == '/stop':
         vc = message.author.voice.channel
@@ -43,14 +45,13 @@ async def on_message(message):
         del read #接続インスタンスを破棄
     
     #読み上げインスタンスが起動しているか確認
-    try:
+    if message.channel.id == channel_id: 
         if message.content[0] == "/": #コマンドは読み上げない
             pass
         else:
             #テキストを読み上げる
             await read.ReadingText(message, voice_client)
-    except NameError:
-        pass
+
 
 #Botの起動とDiscordサーバーへの接続
 client.run(token=token["TokenKey"])
