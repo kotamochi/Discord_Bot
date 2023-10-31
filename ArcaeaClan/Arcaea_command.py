@@ -71,27 +71,53 @@ def Random_Select_Level(level1="0", level2="12"):
 async def Arcaea_ScoreBattle(client, message, batlle_sys):
     try:
         #シングルス対決を実行
-        thread, player1, player2, users = await Singles_RandomScoreBattle(client, message, batlle_sys)
-    
+        thread, score1, score2, users, music_ls = await Singles_RandomScoreBattle(client, message, batlle_sys)
+
         #対戦方式によってスコア計算を分岐
         if batlle_sys == 0: #通常スコア対決
             #得点を計算
-            winner, loser, player1_score, player2_score = await Score_Battle(player1, player2, users[0], users[1])
+            winner, loser, player1_score, player2_score = await Score_Battle(score1, score2, users[0], users[1])
         elif batlle_sys == 1: #EXスコア対決
             #得点を計算
-            winner, loser, player1_score, player2_score, Drow_Flg = await EX_Score_Battle(player1, player2, users[0], users[1])
+            winner, loser, player1_score, player2_score, Drow_Flg = await EX_Score_Battle(score1, score2, users[0], users[1])
         
         #勝敗をスレッドに表示
         if player1_score == player2_score:
             await thread.send(f"結果は両者{player1_score} で引き分けです!!お疲れ様でした")
             Drow_Flg = True
+            #表示用のリザルトを作成
+            result = f"[{vs_format}]\n・1曲目 {music_ls[0]}\n{user_name1}：{score1[0]}\n{user_name2}：{score2[0]}\n\
+・2曲目 {music_ls[1]}\n{user_name1}：{score1[1]}\n{user_name2}：{score2[1]}\n\
+・Total\n{user_name1}：{player1_score}\n{user_name2}：{player2_score}\n\n\
+Drow：{client.get_user(winner).display_name, client.get_user(loser).display_name}!!"
+            
         else:
             await thread.send(f"{users[0]}: {player1_score}\n{users[1]}: {player2_score}\n\n勝者は{winner}さんでした!!お疲れ様でした!!")
             Drow_Flg = False
+            #表示用のリザルトを作成
+            result = f"[{vs_format}]\n・1曲目 {music_ls[0]}\n{user_name1}：{score1[0]}\n{user_name2}：{score2[0]}\n\
+・2曲目 {music_ls[1]}\n{user_name1}：{score1[1]}\n{user_name2}：{score2[1]}\n\
+・Total\n{user_name1}：{player1_score}\n{user_name2}：{player2_score}\n\n\
+Winner：{client.get_user(winner).display_name}!!"
+
+        #メンションをUserIDに変換
+        winner = int(winner[2:-1])
+        loser = int(loser[2:-1])
+        user_name1 = client.get_user(int((users[0])[2:-1])).display_name
+        user_name2 = client.get_user(int((users[1])[2:-1])).display_name
+
+        #勝負形式を取得
+        if batlle_sys == 1:
+            vs_format = "EXScoreBattle"
+        else:
+            vs_format = "ScoreBattle"
+
+        #作成した対戦結果をチャンネルに表示
+        await message.reply(result)
 
         #csvファイルに保存
         df_log = pd.read_csv("BattleLog.csv")
-        now_data = [[int(winner[2:-1]), int(loser[2:-1]), Drow_Flg]]
+        now_data = [[winner, loser, Drow_Flg]]
         df_now = pd.DataFrame(now_data, columns=["Winner", "Loser", "Drow_Flg"])
         df_log = pd.concat([df_log, df_now])
         df_log.to_csv("BattleLog.csv", index=False)
@@ -127,7 +153,7 @@ async def Singles_RandomScoreBattle(client, message, EX_flg):
         username_2 = client.get_user(users_id[1]).display_name
         #対戦スレッドを作成
         thread = await message.channel.create_thread(name="{} vs {}：{}".format(username_1, username_2, vs_format))
-        
+
         #スレッド内でのエラーをキャッチ
         try:
             #難易度選択時のメッセージチェック関数
@@ -168,7 +194,7 @@ async def Singles_RandomScoreBattle(client, message, EX_flg):
             #渡されたコマンドを分割
             select_difficult = msg.content.split(' ')
 
-            player1, player2 = [], []
+            score1, score2, music_ls = [], [], []
 
             N_music = 2 #対戦曲数を指定(基本的に2)
             count = 0 #何曲目かをカウントする
@@ -237,8 +263,8 @@ async def Singles_RandomScoreBattle(client, message, EX_flg):
                 
                 await asyncio.sleep(1)
 
-                player1.append(BattleRisult1.content)
-                player2.append(BattleRisult2.content)
+                score1.append(BattleRisult1.content)
+                score2.append(BattleRisult2.content)
 
                 #どちらかが終了と入力したら終わる
                 if BattleRisult1.content == "終了" or BattleRisult2.content == "終了":
@@ -246,6 +272,9 @@ async def Singles_RandomScoreBattle(client, message, EX_flg):
             
                 #対戦曲数を数える
                 count += 1
+
+                #選択曲をレコード用に取得
+                music_ls.append(f"{dif} {music} {level_str}")
                         
                 #最終曲になったらループを抜ける
                 if count == N_music:
@@ -255,8 +284,8 @@ async def Singles_RandomScoreBattle(client, message, EX_flg):
 
                 await thread.send(f"{count}曲目お疲れ様でした！！ {count+1}曲目の選曲を行います。")
                 await asyncio.sleep(3)
-            
-            return thread, player1, player2, users
+
+            return thread, score1, score2, users, music_ls
         
         #スレッド内でトラブルが起こったらスレッドを閉じる
         except Exception:
@@ -264,6 +293,7 @@ async def Singles_RandomScoreBattle(client, message, EX_flg):
             await thread.send("タイムアウト、もしくはコマンド不備により対戦が終了されました。")
             await asyncio.sleep(5) #スレッド削除まで待機
             await thread.delete()
+            await message.channel.send("タイムアウト、もしくはコマンド不備により対戦が終了されました。") #メッセージチャンネルにも表示
             
 
 #スコア対決の計算
