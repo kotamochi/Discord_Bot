@@ -39,7 +39,7 @@ async def on_member_join(member):
 @client.event
 async def on_message(message):
     #ランダム選曲チャンネル以外では反応しない
-    if message.channel.id == RandomSelect_CH:
+    if message.channel.id == Creater_RoomID:
         #課題曲を作成する
         if message.content.startswith('/a rand'):
             try:
@@ -70,10 +70,10 @@ async def on_message(message):
     if message.channel.id == RandomBattle_CH or message.channel.id == Creater_RoomID:
         #1v1勝負
         if message.content.startswith('/b vs'):
-            #try:
-            await Arcaea_command.Arcaea_RandomScoreBattle(client, message) #対戦用関数を実行      
-            #except Exception:
-            #    await message.channel.send("タイムアウト、もしくはコマンド不備により対戦が終了されました。") #トラブルがおこった際に表示
+            try:
+                await Arcaea_command.Arcaea_ScoreBattle(client, message, 0) #対戦用関数を実行      
+            except Exception:
+                await message.channel.send("タイムアウト、もしくはコマンド不備により対戦が終了されました。") #トラブルがおこった際に表示
 
         #ダブルス勝負
         if message.content.startswith('/a 2vs2'):
@@ -84,11 +84,10 @@ async def on_message(message):
 
         #EXスコア勝負
         if message.content.startswith('/a ex'):
-            if len(message.content.split(' ')) == 4:
-                try:
-                    await Arcaea_command.Arcaea_EXScoreBattle(client, message) #対戦用関数を実行      
-                except Exception:
-                    await message.channel.send("タイムアウト、もしくはコマンド不備により対戦が終了されました。") #トラブルがおこった際に表示
+            try:
+                await Arcaea_command.Arcaea_ScoreBattle(client, message, 1) #対戦用関数を実行      
+            except Exception:
+                await message.channel.send("タイムアウト、もしくはコマンド不備により対戦が終了されました。") #トラブルがおこった際に表示
             
         #戦績を確認する
         if message.content == '/a log':
