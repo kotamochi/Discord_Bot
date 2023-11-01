@@ -81,28 +81,9 @@ async def Arcaea_ScoreBattle(client, message, batlle_sys):
             #得点を計算
             winner, loser, player1_score, player2_score, Drow_Flg = await EX_Score_Battle(score1, score2, users[0], users[1])
         
-        #勝敗をスレッドに表示
-        if player1_score == player2_score:
-            await thread.send(f"結果は両者{player1_score} で引き分けです!!お疲れ様でした")
-            Drow_Flg = True
-            #表示用のリザルトを作成
-            result = f"[{vs_format}]\n・1曲目 {music_ls[0]}\n{user_name1}：{score1[0]}\n{user_name2}：{score2[0]}\n\
-・2曲目 {music_ls[1]}\n{user_name1}：{score1[1]}\n{user_name2}：{score2[1]}\n\
-・Total\n{user_name1}：{player1_score}\n{user_name2}：{player2_score}\n\n\
-Drow：{client.get_user(winner).display_name, client.get_user(loser).display_name}!!"
-            
-        else:
-            await thread.send(f"{users[0]}: {player1_score}\n{users[1]}: {player2_score}\n\n勝者は{winner}さんでした!!お疲れ様でした!!")
-            Drow_Flg = False
-            #表示用のリザルトを作成
-            result = f"[{vs_format}]\n・1曲目 {music_ls[0]}\n{user_name1}：{score1[0]}\n{user_name2}：{score2[0]}\n\
-・2曲目 {music_ls[1]}\n{user_name1}：{score1[1]}\n{user_name2}：{score2[1]}\n\
-・Total\n{user_name1}：{player1_score}\n{user_name2}：{player2_score}\n\n\
-Winner：{client.get_user(winner).display_name}!!"
-
         #メンションをUserIDに変換
-        winner = int(winner[2:-1])
-        loser = int(loser[2:-1])
+        winner_id = int(winner[2:-1])
+        loser_id = int(loser[2:-1])
         user_name1 = client.get_user(int((users[0])[2:-1])).display_name
         user_name2 = client.get_user(int((users[1])[2:-1])).display_name
 
@@ -111,13 +92,33 @@ Winner：{client.get_user(winner).display_name}!!"
             vs_format = "EXScoreBattle"
         else:
             vs_format = "ScoreBattle"
+            
+        #勝敗をスレッドに表示    
+        if player1_score == player2_score:
+            await thread.send(f"結果は両者{player1_score} で引き分けです!!お疲れ様でした")
+            Drow_Flg = True
+            #表示用のリザルトを作成
+            result = f"[{vs_format}]\n・1曲目 {music_ls[0]}\n{user_name1}：{score1[0]}\n{user_name2}：{score2[0]}\n\
+・2曲目 {music_ls[1]}\n{user_name1}：{score1[1]}\n{user_name2}：{score2[1]}\n\
+・Total\n{user_name1}：{player1_score}\n{user_name2}：{player2_score}\n\n\
+Drow：{client.get_user(winner_id).display_name, client.get_user(loser_id).display_name}!!"
+            
+        else:
+            await thread.send(f"{users[0]}: {player1_score}\n{users[1]}: {player2_score}\n\n勝者は{winner}さんでした!!お疲れ様でした!!")
+            Drow_Flg = False
+            #表示用のリザルトを作成
+            result = f"[{vs_format}]\n・1曲目 {music_ls[0]}\n{user_name1}：{score1[0]}\n{user_name2}：{score2[0]}\n\
+・2曲目 {music_ls[1]}\n{user_name1}：{score1[1]}\n{user_name2}：{score2[1]}\n\
+・Total\n{user_name1}：{player1_score}\n{user_name2}：{player2_score}\n\n\
+Winner：{client.get_user(winner_id).display_name}!!"
+
 
         #作成した対戦結果をチャンネルに表示
         await message.reply(result)
 
         #csvファイルに保存
         df_log = pd.read_csv("BattleLog.csv")
-        now_data = [[winner, loser, Drow_Flg]]
+        now_data = [[winner_id, loser_id, Drow_Flg]]
         df_now = pd.DataFrame(now_data, columns=["Winner", "Loser", "Drow_Flg"])
         df_log = pd.concat([df_log, df_now])
         df_log.to_csv("BattleLog.csv", index=False)
@@ -129,7 +130,9 @@ Winner：{client.get_user(winner).display_name}!!"
         await thread.delete() #スレッドを削除
         
     #トラブルがおこった際に表示
-    except Exception:
+    except Exception as error:
+        print(type(error))
+        print(error.args)
         await message.channel.send("タイムアウト、もしくはコマンド不備により対戦が終了されました。")
         
 
@@ -152,7 +155,7 @@ async def Singles_RandomScoreBattle(client, message, EX_flg):
         username_1 = client.get_user(users_id[0]).display_name
         username_2 = client.get_user(users_id[1]).display_name
         #対戦スレッドを作成
-        thread = await message.channel.create_thread(name="{} vs {}：{}".format(username_1, username_2, vs_format))
+        thread = await message.channel.create_thread(name="{} vs {}：{}".format(username_1, username_2, vs_format),type=discord.ChannelType.public_thread)
 
         #スレッド内でのエラーをキャッチ
         try:
@@ -225,26 +228,48 @@ async def Singles_RandomScoreBattle(client, message, EX_flg):
                 await thread.send(startmsg)
                 await asyncio.sleep(0.5)
 
-                def check(m):
+                def check(m): #通常スコア用チェック関数
                     try:
                         ms = m.content.split(' ')
-                        for i in ms:
-                            int(i)
-                        return True
+                        if len(ms) == 1:
+                            for i in ms:
+                                int(i)
+                            return True
+                    except Exception:
+                        if m.content == "終了" or m.content == "引き直し": #終了か引き直しと入力した場合のみok
+                            return True
+                        return False
+                    
+                def checkEX(m): #EXスコア用チェック関数
+                    try:
+                        ms = m.content.split(' ')
+                        if len(ms) == 4:
+                            for i in ms:
+                                int(i)
+                            return True
                     except Exception:
                         if m.content == "終了" or m.content == "引き直し": #終了か引き直しと入力した場合のみok
                             return True
                         return False
                     
                 await thread.send(f"{users[0]}さんのスコアを入力してください。\n楽曲を再選択する場合は「引き直し」と入力してください")
-            
-                #メッセージを受け取ったスレッドに対してのみ返す
-                while True:
-                    BattleRisult1 = await client.wait_for('message', check=check, timeout=600)
-                    if thread.id == BattleRisult1.channel.id:
-                        break
-                    else:
-                        pass
+
+                if EX_flg == True:
+                    #メッセージを受け取ったスレッドに対してのみ返す
+                    while True:
+                        BattleRisult1 = await client.wait_for('message', check=checkEX, timeout=600)
+                        if thread.id == BattleRisult1.channel.id:
+                            break
+                        else:
+                            pass
+                else:
+                    #メッセージを受け取ったスレッドに対してのみ返す
+                    while True:
+                        BattleRisult1 = await client.wait_for('message', check=check, timeout=600)
+                        if thread.id == BattleRisult1.channel.id:
+                            break
+                        else:
+                            pass
                 
                 await asyncio.sleep(0.5)
                 #引き直しが選択されたら選曲まで戻る
@@ -254,12 +279,20 @@ async def Singles_RandomScoreBattle(client, message, EX_flg):
                 await thread.send(f"{users[1]}さんのスコアを入力してください。")
             
                 #メッセージを受け取ったスレッドに対してのみ返す
-                while True:
-                    BattleRisult2 = await client.wait_for('message', check=check, timeout=120)
-                    if thread.id == BattleRisult2.channel.id:
-                        break
-                    else:
-                        pass
+                if EX_flg == True:
+                    while True:
+                        BattleRisult2 = await client.wait_for('message', check=checkEX, timeout=120)
+                        if thread.id == BattleRisult2.channel.id:
+                            break
+                        else:
+                            pass
+                else:
+                    while True:
+                        BattleRisult2 = await client.wait_for('message', check=check, timeout=120)
+                        if thread.id == BattleRisult2.channel.id:
+                            break
+                        else:
+                            pass 
                 
                 await asyncio.sleep(1)
 
@@ -274,7 +307,7 @@ async def Singles_RandomScoreBattle(client, message, EX_flg):
                 count += 1
 
                 #選択曲をレコード用に取得
-                music_ls.append(f"{dif} {music} {level_str}")
+                music_ls.append(f"{music} {dif} {level_str}")
                         
                 #最終曲になったらループを抜ける
                 if count == N_music:
@@ -290,10 +323,9 @@ async def Singles_RandomScoreBattle(client, message, EX_flg):
         #スレッド内でトラブルが起こったらスレッドを閉じる
         except Exception:
             await asyncio.sleep(1) #間を空ける
-            await thread.send("タイムアウト、もしくはコマンド不備により対戦が終了されました。")
-            await asyncio.sleep(5) #スレッド削除まで待機
+            await thread.send("タイムアウト、もしくはコマンド不備により対戦が終了されました。スレッドを削除します。")
+            await asyncio.sleep(3) #スレッド削除まで待機
             await thread.delete()
-            await message.channel.send("タイムアウト、もしくはコマンド不備により対戦が終了されました。") #メッセージチャンネルにも表示
             
 
 #スコア対決の計算
@@ -427,6 +459,7 @@ async def User_Status(client, message, file_path):
 
     #集計が終了したデータを勝利→引き分け→敗北にソートして返す
     return result.sort_values(by=["Win", "Drow", "Lose"])
+
 
 #ダブルススコアバトルを行う関数
 async def Arcaea_DoublesScoreBattle(client, message):
