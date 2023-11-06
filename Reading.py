@@ -14,8 +14,12 @@ class VoiceBox():
     
     #音声変換を呼び出す設定
     async def CreateQuery(self, message):
-        params = (('text', message.content),
-                  ('speaker', self.sepeker_id))
+        if message.author.id == 665896865627111425:
+            params = (('text', message.content),
+                      ('speaker', 26))
+        else:
+            params = (('text', message.content),
+                      ('speaker', self.sepeker_id))
         query = requests.post(f'http://{self.host}:{self.port}/audio_query',
                               params=params)
 
