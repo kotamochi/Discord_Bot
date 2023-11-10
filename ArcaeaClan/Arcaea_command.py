@@ -149,37 +149,37 @@ async def Arcaea_ScoreBattle(client, message, batlle_sys):
             else:
                 winner1 = users[2]
                 winner2 = users[3]
-                
+
             #勝敗をスレッドに表示
             if team1_score == team2_score:
                 await thread.send(f"結果は両チーム{team1_score} で引き分け!!お疲れ様!!!")
                 #表示用のリザルトを作成
                 result = f"[ScoreBattle(Team)]]\n"\
                          f"・1曲目 {music_ls[0]}\n"\
-                         f"{team1_user_name1}チーム：{team1[0] + team1[1]}\n"\
-                         f"{team2_user_name2}チーム：{team2[0] + team2[1]}\n"\
+                         f"{team1_user_name1}チーム：{int(team1[0]) + int(team1[1])}\n"\
+                         f"{team2_user_name2}チーム：{int(team2[0]) + int(team2[1])}\n"\
                          f"・2曲目 {music_ls[1]}\n"\
-                         f"{team1_user_name1}チーム：{team1[2] + team1[3]}\n"\
-                         f"{team2_user_name2}チーム：{team2[2] + team2[3]}\n"\
+                         f"{team1_user_name1}チーム：{int(team1[2]) + int(team1[3])}\n"\
+                         f"{team2_user_name2}チーム：{int(team2[2]) + int(team2[3])}\n"\
                          f"・Total\n{team1_user_name1}：{team1_score}\n"\
                          f"{team2_user_name2}：{team2_score}\n"\
-                          "n"\
-                         f"Drow：{team1_user_name1}チーム {team2_user_name2}!"
+                          "\n"\
+                         f"Drow：{team1_user_name1}チーム {team2_user_name2}チーム!"
             else:
                 await thread.send(f"{users[0]}チーム: {team1_score}\n{users[2]}チーム: {team2_score}\n\n勝者は{winner1}, {winner2}チーム!!おめでとう!!お疲れ様!!")
                 #表示用のリザルトを作成
                 result = f"[ScoreBattle(Team)]]\n"\
                          f"・1曲目 {music_ls[0]}\n"\
-                         f"{team1_user_name1}チーム：{team1[0] + team1[1]}\n"\
-                         f"{team2_user_name2}チーム：{team2[0] + team2[1]}\n"\
+                         f"{team1_user_name1}チーム：{int(team1[0]) + int(team1[1])}\n"\
+                         f"{team2_user_name2}チーム：{int(team2[0]) + int(team2[1])}\n"\
                          f"・2曲目 {music_ls[1]}\n"\
-                         f"{team1_user_name1}チーム：{team1[2] + team1[3]}\n"\
-                         f"{team2_user_name2}チーム：{team2[2] + team2[3]}\n"\
+                         f"{team1_user_name1}チーム：{int(team1[2]) + int(team1[3])}\n"\
+                         f"{team2_user_name2}チーム：{int(team2[2]) + int(team2[3])}\n"\
                          f"・Total\n{team1_user_name1}：{team1_score}\n"\
                          f"{team2_user_name2}：{team2_score}\n"\
-                          "n"\
-                         f"Winner：{client.get_user(int(winner1[2:-1])).display_name},{client.get_user(int(winner2[2:-1])).display_name}!!"
-                         
+                          "\n"\
+                         f"Winner：{client.get_user(int(winner1[2:-1])).display_name},{client.get_user(int(winner2[2:-1])).display_name}チーム!!"
+
         #対戦結果をチャンネルに表示
         await message.reply(result)
         
@@ -686,7 +686,7 @@ async def Doubles_RandomScoreBattle(client, message):
                     await asyncio.sleep(3)
                     break
 
-                await message.channel.send(f"{count}曲目お疲れ様！！ {count+1}曲目の選曲を始めるよ。")
+                await thread.send(f"{count}曲目お疲れ様でした！！ {count+1}曲目の選曲を行います。")
                 await asyncio.sleep(3)
                 
             return thread, team1, team2, users, music_ls

@@ -4,7 +4,7 @@ import discord
 import Arcaea_command
 
 #自分のBotのアクセストークンを取得
-with open("C:\python\Discord_Bot\Discord_APIToken.json") as file:
+with open("ArcaeabotKey.json") as file:
     token = json.load(file)
 
 #自分のBotのアクセストークン
@@ -39,7 +39,7 @@ async def on_member_join(member):
 @client.event
 async def on_message(message):
     #ランダム選曲チャンネル以外では反応しない
-    if message.channel.id == Creater_RoomID:
+    if message.channel.id == RandomSelect_CH:
         #課題曲を作成する
         if message.content.startswith('/a rand'):
             try:
@@ -69,15 +69,15 @@ async def on_message(message):
     #ランダム1v1チャンネル以外では反応しない
     if message.channel.id == RandomBattle_CH or message.channel.id == Creater_RoomID:
         #1v1勝負
-        if message.content.startswith('/b vs'):
-            await Arcaea_command.Arcaea_ScoreBattle(client, message, 0) #対戦用関数を実行      
+        if message.content.startswith('/a vs'):
+            await Arcaea_command.Arcaea_ScoreBattle(client, message, 0) #対戦用関数を実行
         #EXスコア勝負
         elif message.content.startswith('/a ex'):
             await Arcaea_command.Arcaea_ScoreBattle(client, message, 1) #対戦用関数を実行      
         #ダブルス勝負
-        elif message.content.startswith('/b 2vs2'):
+        elif message.content.startswith('/a 2vs2'):
             await Arcaea_command.Arcaea_ScoreBattle(client, message, 2) #対戦用関数を実行      
-            
+
         #戦績を確認する
         if message.content == '/a log':
             #Score勝負の結果集計
@@ -124,6 +124,7 @@ async def on_message(message):
     if message.content == '/battlelog' and message.author.id == Creater_ID:
         dm_channel = await message.author.create_dm()
         await dm_channel.send(file=discord.File('BattleLog.csv'))
+        await dm_channel.send(file=discord.File('BattleLog_EXScore.csv'))
 
 
     #ポテンシャル計算機(身内用)
