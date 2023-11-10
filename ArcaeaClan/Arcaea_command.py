@@ -361,8 +361,8 @@ async def Singles_RandomScoreBattle(client, message, EX_flg):
 
                 #どちらかが終了と入力したら終わる
                 if BattleRisult1.content == "終了" or BattleRisult2.content == "終了":
-                    await asyncio.sleep(3)
                     await thread.send(f"対戦が途中で終了されました。お疲れ様でした。")
+                    await asyncio.sleep(3)
                     await thread.delete()
                     return
                 
@@ -669,8 +669,8 @@ async def Doubles_RandomScoreBattle(client, message):
 
                 #どちらかが終了と入力したら終わる
                 if BattleRisult1.content == "終了" or BattleRisult3.content == "終了":
-                    await asyncio.sleep(3)
                     await thread.send(f"対戦が途中で終了されました。お疲れ様でした。")
+                    await asyncio.sleep(3)
                     await thread.delete()
                     return 
                 
