@@ -782,5 +782,5 @@ def Random_Select_Const(const1="0", const2="12.0"):
         level_str = str(math.floor(level)) + "+"
     else:
         level_str = str(math.floor(level))
-        
+
     return music, level_str
