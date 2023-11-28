@@ -151,7 +151,7 @@ async def Arcaea_ScoreBattle(client, message, batlle_sys):
             else:
                 winner1 = users[2]
                 winner2 = users[3]
-                
+
             #勝敗をスレッドに表示
             if team1_score == team2_score:
                 await thread.send(f"結果は両チーム{team1_score} で引き分け!!お疲れ様!!!")
@@ -166,7 +166,7 @@ async def Arcaea_ScoreBattle(client, message, batlle_sys):
                          f"・Total\n{team1_user_name1}：{team1_score}\n"\
                          f"{team2_user_name2}：{team2_score}\n"\
                           "\n"\
-                         f"Drow：{team1_user_name1}チーム {team2_user_name2}!"
+                         f"Drow：{team1_user_name1}チーム {team2_user_name2}チーム!"
             else:
                 await thread.send(f"{users[0]}チーム: {team1_score}\n{users[2]}チーム: {team2_score}\n\n勝者は{winner1}, {winner2}チーム!!おめでとう!!お疲れ様!!")
                 #表示用のリザルトを作成
@@ -180,8 +180,8 @@ async def Arcaea_ScoreBattle(client, message, batlle_sys):
                          f"・Total\n{team1_user_name1}：{team1_score}\n"\
                          f"{team2_user_name2}：{team2_score}\n"\
                           "\n"\
-                         f"Winner：{client.get_user(int(winner1[2:-1])).display_name},{client.get_user(int(winner2[2:-1])).display_name}!!"
-                         
+                         f"Winner：{client.get_user(int(winner1[2:-1])).display_name},{client.get_user(int(winner2[2:-1])).display_name}チーム!!"
+
         #対戦結果をチャンネルに表示
         await message.reply(result)
         
@@ -362,8 +362,8 @@ async def Singles_RandomScoreBattle(client, message, EX_flg):
 
                 #どちらかが終了と入力したら終わる
                 if BattleRisult1.content == "終了" or BattleRisult2.content == "終了":
-                    await asyncio.sleep(3)
                     await thread.send(f"対戦が途中で終了されました。お疲れ様でした。")
+                    await asyncio.sleep(3)
                     await thread.delete()
                     return
                 
@@ -394,139 +394,6 @@ async def Singles_RandomScoreBattle(client, message, EX_flg):
     else:
         #例外処理に持っていく
         raise Exception("")
-            
-
-#スコア対決の計算
-async def Score_Battle(user1, user2, name1, name2):
-
-    #対戦者名とスコアを取得
-    user1_score = 0
-    user2_score = 0
-    for score1, score2 in zip(user1, user2):
-        
-        user1_score += int(score1)
-        user2_score += int(score2)
-
-    if user1_score > user2_score:    #user1の勝利
-        return name1, name2, user1_score, user2_score
-    elif user1_score == user2_score: #引き分け
-        return name1, name2, user1_score, user2_score
-    else:                            #user2の勝利
-        return name2, name1, user1_score, user2_score
-    
-    
-#EXスコア対決の計算
-async def EX_Score_Battle(user1, user2, name1, name2):
-
-    #対戦者名とスコアを取得
-    user1_score = 0
-    user2_score = 0
-    total_P_pure1 = 0
-    total_P_pure2 = 0
-    for score1, score2 in zip(user1, user2):
-    
-        #EXスコアを計算(無印Pure:3点,Pure:2点,Far:1点,Lost:0点)
-        
-        #1Pプレイヤーのスコアを計算
-        pure1, P_pure1, far1, lost1 = score1.split(' ')
-        F_pure1 = int(pure1) - int(P_pure1)
-        user1_score += int(P_pure1)*3 + int(F_pure1)*2 + int(far1)*1
-        total_P_pure1 += int(P_pure1)
-        
-        #2Pプレイヤーのスコアを計算
-        pure2, P_pure2, far2, lost2 = score2.split(' ')
-        F_pure2 = int(pure2) - int(P_pure2)
-        user2_score += int(P_pure2)*3 + int(F_pure2)*2 + int(far2)*1
-        total_P_pure2 += int(P_pure1)
-
-    if user1_score > user2_score:   #user1の勝利
-        Drow_Flg = False
-        return name1, name2, user1_score, user2_score, Drow_Flg
-    elif user1_score < user2_score: #user2の勝利
-        Drow_Flg = False
-        return name2, name1, user1_score, user2_score, Drow_Flg
-    else:                           #EXスコアが引き分けのときは内部精度勝負
-        if total_P_pure1 > total_P_pure2:   #user1の勝利
-            Drow_Flg = False
-            return name1, name2, user1_score, user2_score, Drow_Flg
-        elif total_P_pure1 < total_P_pure2: #user2の勝利
-            Drow_Flg = False
-            return name2, name1, user1_score, user2_score, Drow_Flg
-        else:                               #それでも結果がつかなかった場合引き分け
-            Drow_Flg = True
-            return name1, name2, user1_score, user2_score, Drow_Flg
-
-    
-#戦績を確認
-async def User_Status(client, message, file_path):
-    BattleLog = pd.read_csv(file_path)
-
-    BattleLog["Winner"] = BattleLog["Winner"].astype("Int64")
-    BattleLog["Loser"] = BattleLog["Loser"].astype("Int64")
-    wins = BattleLog[BattleLog["Winner"] == message.author.id]
-    loses = BattleLog[BattleLog["Loser"] == message.author.id]
-    userdata = pd.concat([wins, loses])
-
-    
-    #引き分け行に前処理を行う
-    idx = 0
-    for recode in userdata.itertuples():
-        if recode.Drow_Flg == True:
-            if recode.Winner == message.author.id:
-                pass
-            else:
-                userdata.loc[idx, "Loser"] == userdata.loc[idx, "Winner"]
-                userdata.loc[idx, "Winner"] == message.author.id
-
-    #重複行を纏める
-    margedata = userdata.drop_duplicates()
-    #結果を保存するデータフレームを作成
-    result = pd.DataFrame(columns=["User"])
-    
-    #対戦した相手をUserとしてデータフレームに登録していく
-    for idx, recode in margedata.iterrows():
-        if recode["Winner"] == message.author.id: #勝ってたとき
-            if (result["User"] == recode["Loser"]).any():
-                pass
-            else:
-                new_user = pd.DataFrame({"User":[recode["Loser"]]})
-                result = pd.concat([result, new_user])
-        elif recode.Loser == message.author.id: #負けてたとき
-            if (result["User"] == recode["Winner"]).any():
-                pass
-            else:
-                new_user = pd.DataFrame({"User":[recode["Winner"]]})
-                result = pd.concat([result, new_user])
-
-
-    #勝敗結果を記録するために列を追加、インデックスを追加
-    result = result.assign(Win=0, Lose=0, Drow=0)
-    result.index = range(len(result))
-
-    #与えられたデータを上から流していく
-    for _, recode in userdata.iterrows():
-        if recode["Winner"] == message.author.id and recode["Drow_Flg"] == False: #入力者が勝者の場合
-            idx = result.index[result["User"] == recode["Loser"]]
-            result.loc[idx, "Win"] += 1 
-        elif recode["Loser"] == message.author.id and recode["Drow_Flg"] == False: #入力者が敗者の場合
-            idx = result.index[result["User"] == recode["Winner"]]
-            result.loc[idx,"Lose"] += 1
-        elif recode["Drow_Flg"] == True:
-            if recode["Winner"] == message.author.id:
-                idx = result.index[result["User"] == recode["Loser"]]
-                result.loc[idx,"Drow"] += 1
-            elif recode["Loser"] == message.author.id:
-                idx = result.index[result["User"] == recode["Winner"]]
-                result.loc[idx,"Drow"] += 1
-
-    #名前を表示名に変更する
-    for idx, recode in result.iterrows():
-        result.loc[idx, "User"] = (await client.fetch_user(recode["User"])).display_name
-
-    
-
-    #集計が終了したデータを勝利→引き分け→敗北にソートして返す
-    return result.sort_values(by=["Win", "Drow", "Lose"])
 
 
 #ダブルススコアバトルを行う関数
@@ -677,8 +544,8 @@ async def Doubles_RandomScoreBattle(client, message):
 
                 #どちらかが終了と入力したら終わる
                 if BattleRisult1.content == "終了" or BattleRisult3.content == "終了":
-                    await asyncio.sleep(3)
                     await thread.send(f"対戦が途中で終了されました。お疲れ様でした。")
+                    await asyncio.sleep(3)
                     await thread.delete()
                     return 
                 
@@ -694,7 +561,7 @@ async def Doubles_RandomScoreBattle(client, message):
                     await asyncio.sleep(3)
                     break
 
-                await thread.send(f"{count}曲目お疲れ様！！ {count+1}曲目の選曲を始めるよ。")
+                await thread.send(f"{count}曲目お疲れ様でした！！ {count+1}曲目の選曲を行います。")
                 await asyncio.sleep(3)
                 
             return thread, team1, team2, users, music_ls
@@ -709,6 +576,136 @@ async def Doubles_RandomScoreBattle(client, message):
     else:
         #例外処理に持っていく
         raise Exception("")
+    
+    
+#スコア対決の計算
+async def Score_Battle(user1, user2, name1, name2):
+
+    #対戦者名とスコアを取得
+    user1_score = 0
+    user2_score = 0
+    for score1, score2 in zip(user1, user2):
+        
+        user1_score += int(score1)
+        user2_score += int(score2)
+
+    if user1_score > user2_score:    #user1の勝利
+        return name1, name2, user1_score, user2_score
+    elif user1_score == user2_score: #引き分け
+        return name1, name2, user1_score, user2_score
+    else:                            #user2の勝利
+        return name2, name1, user1_score, user2_score
+    
+    
+#EXスコア対決の計算
+async def EX_Score_Battle(user1, user2, name1, name2):
+
+    #対戦者名とスコアを取得
+    user1_score = 0
+    user2_score = 0
+    total_P_pure1 = 0
+    total_P_pure2 = 0
+    for score1, score2 in zip(user1, user2):
+        #EXスコアを計算(無印Pure:3点,Pure:2点,Far:1点,Lost:0点)
+        #1Pプレイヤーのスコアを計算
+        pure1, P_pure1, far1, lost1 = score1.split(' ')
+        F_pure1 = int(pure1) - int(P_pure1)
+        user1_score += int(P_pure1)*3 + int(F_pure1)*2 + int(far1)*1
+        total_P_pure1 += int(P_pure1)
+        
+        #2Pプレイヤーのスコアを計算
+        pure2, P_pure2, far2, lost2 = score2.split(' ')
+        F_pure2 = int(pure2) - int(P_pure2)
+        user2_score += int(P_pure2)*3 + int(F_pure2)*2 + int(far2)*1
+        total_P_pure2 += int(P_pure1)
+
+    if user1_score > user2_score:   #user1の勝利
+        Drow_Flg = False
+        return name1, name2, user1_score, user2_score, Drow_Flg
+    elif user1_score < user2_score: #user2の勝利
+        Drow_Flg = False
+        return name2, name1, user1_score, user2_score, Drow_Flg
+    else:                           #EXスコアが引き分けのときは内部精度勝負
+        if total_P_pure1 > total_P_pure2:   #user1の勝利
+            Drow_Flg = False
+            return name1, name2, user1_score, user2_score, Drow_Flg
+        elif total_P_pure1 < total_P_pure2: #user2の勝利
+            Drow_Flg = False
+            return name2, name1, user1_score, user2_score, Drow_Flg
+        else:                               #それでも結果がつかなかった場合引き分け
+            Drow_Flg = True
+            return name1, name2, user1_score, user2_score, Drow_Flg
+
+    
+#戦績を確認
+async def User_Status(client, message, file_path):
+    #データを読み込んで加工しやすいように前処理
+    BattleLog = pd.read_csv(file_path)
+    BattleLog["Winner"] = BattleLog["Winner"].astype("Int64")
+    BattleLog["Loser"] = BattleLog["Loser"].astype("Int64")
+    wins = BattleLog[BattleLog["Winner"] == message.author.id]
+    loses = BattleLog[BattleLog["Loser"] == message.author.id]
+    userdata = pd.concat([wins, loses])
+
+    #引き分け行に前処理を行う
+    idx = 0
+    for recode in userdata.itertuples():
+        if recode.Drow_Flg == True:
+            if recode.Winner == message.author.id:
+                pass
+            else:
+                userdata.loc[idx, "Loser"] == userdata.loc[idx, "Winner"]
+                userdata.loc[idx, "Winner"] == message.author.id
+
+    #重複行を纏める
+    margedata = userdata.drop_duplicates()
+    #結果を保存するデータフレームを作成
+    result = pd.DataFrame(columns=["User"])
+    
+    #対戦した相手をUserとしてデータフレームに登録していく
+    for idx, recode in margedata.iterrows():
+        if recode["Winner"] == message.author.id: #勝ってたとき
+            if (result["User"] == recode["Loser"]).any():
+                pass
+            else:
+                new_user = pd.DataFrame({"User":[recode["Loser"]]})
+                result = pd.concat([result, new_user])
+        elif recode.Loser == message.author.id: #負けてたとき
+            if (result["User"] == recode["Winner"]).any():
+                pass
+            else:
+                new_user = pd.DataFrame({"User":[recode["Winner"]]})
+                result = pd.concat([result, new_user])
+
+
+    #勝敗結果を記録するために列を追加、インデックスを追加
+    result = result.assign(Win=0, Lose=0, Drow=0)
+    result.index = range(len(result))
+
+    #与えられたデータを上から流していく
+    for _, recode in userdata.iterrows():
+        if recode["Winner"] == message.author.id and recode["Drow_Flg"] == False: #入力者が勝者の場合
+            idx = result.index[result["User"] == recode["Loser"]]
+            result.loc[idx, "Win"] += 1 
+        elif recode["Loser"] == message.author.id and recode["Drow_Flg"] == False: #入力者が敗者の場合
+            idx = result.index[result["User"] == recode["Winner"]]
+            result.loc[idx,"Lose"] += 1
+        elif recode["Drow_Flg"] == True:
+            if recode["Winner"] == message.author.id:
+                idx = result.index[result["User"] == recode["Loser"]]
+                result.loc[idx,"Drow"] += 1
+            elif recode["Loser"] == message.author.id:
+                idx = result.index[result["User"] == recode["Winner"]]
+                result.loc[idx,"Drow"] += 1
+
+    #名前を表示名に変更する
+    for idx, recode in result.iterrows():
+        result.loc[idx, "User"] = (await client.fetch_user(recode["User"])).display_name
+
+    
+
+    #集計が終了したデータを勝利→引き分け→敗北にソートして返す
+    return result.sort_values(by=["Win", "Drow", "Lose"])
 
 
 #現在使用していない機能
@@ -793,5 +790,5 @@ def Random_Select_Const(const1="0", const2="12.0"):
         level_str = str(math.floor(level)) + "+"
     else:
         level_str = str(math.floor(level))
-        
+
     return music, level_str
