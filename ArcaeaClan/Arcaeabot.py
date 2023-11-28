@@ -3,8 +3,9 @@ import json
 import discord
 import Arcaea_command
 
+
 #自分のBotのアクセストークンを取得
-with open("C:\python\Discord_Bot\Discord_APIToken.json") as file:
+with open("D:\python\Discord_Bot\Discord_APIToken.json") as file:
     token = json.load(file)
 
 #自分のBotのアクセストークン
@@ -156,19 +157,7 @@ async def on_message(message):
 
             #メンションをつけて返信
             await message.reply(reply)
-            
-    #if message.content.startswith('/対抗戦'):
-    #    #渡されたコマンドを分割
-    #    comannd = message.content.split(' ')
-#
-    #    #譜面定数の下限を設定している時
-    #    if len(comannd) == 3:
-    #        const1 = comannd[1]
-    #        const2 = comannd[2]
-    #        music, level_str = Arcaea_command.Random_Select_Const(const1, const2)
-#
-    #    #ランダムで決まった曲を返信
-    #    await message.channel.send(f"課題曲:{music} :{level_str}です!!")
+
 
 try:
     client.run(TOKEN)

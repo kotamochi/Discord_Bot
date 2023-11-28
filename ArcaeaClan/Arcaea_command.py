@@ -67,7 +67,7 @@ def Random_Select_Level(level1="0", level2="12"):
     return music, level_str, deffecult
 
 
-#1v1スコアバトルを行う関数
+#スコアバトルを行う関数
 async def Arcaea_ScoreBattle(client, message, batlle_sys):
     try:
         #シングルス対決
@@ -104,7 +104,8 @@ async def Arcaea_ScoreBattle(client, message, batlle_sys):
                 await thread.send(f"結果は両者{player1_score} で引き分けです!!お疲れ様でした")
                 Drow_Flg = True
                 #表示用のリザルトを作成
-                result = f"[{vs_format}]\n・1曲目 {music_ls[0]}\n{user_name1}：{score1[0]}\n{user_name2}：{score2[0]}\n"\
+                result = f"[{vs_format}]\n"\
+                         f"・1曲目 {music_ls[0]}\n{user_name1}：{score1[0]}\n{user_name2}：{score2[0]}\n"\
                          f"・2曲目 {music_ls[1]}\n{user_name1}：{score1[1]}\n{user_name2}：{score2[1]}\n"\
                          f"・Total\n{user_name1}：{player1_score}\n{user_name2}：{player2_score}\n\n"\
                          f"Drow：{client.get_user(winner_id).display_name, client.get_user(loser_id).display_name}!!"
@@ -113,7 +114,8 @@ async def Arcaea_ScoreBattle(client, message, batlle_sys):
                 await thread.send(f"{users[0]}: {player1_score}\n{users[1]}: {player2_score}\n\n勝者は{winner}さんでした!!お疲れ様でした!!")
                 Drow_Flg = False
                 #表示用のリザルトを作成
-                result = f"[{vs_format}]\n・1曲目 {music_ls[0]}\n{user_name1}：{score1[0]}\n{user_name2}：{score2[0]}\n"\
+                result = f"[{vs_format}]\n"\
+                         f"・1曲目 {music_ls[0]}\n{user_name1}：{score1[0]}\n{user_name2}：{score2[0]}\n"\
                          f"・2曲目 {music_ls[1]}\n{user_name1}：{score1[1]}\n{user_name2}：{score2[1]}\n"\
                          f"・Total\n{user_name1}：{player1_score}\n{user_name2}：{player2_score}\n\n"\
                          f"Winner：{client.get_user(winner_id).display_name}!!"
@@ -154,30 +156,30 @@ async def Arcaea_ScoreBattle(client, message, batlle_sys):
             if team1_score == team2_score:
                 await thread.send(f"結果は両チーム{team1_score} で引き分け!!お疲れ様!!!")
                 #表示用のリザルトを作成
-                result = f"[ScoreBattle(Team)]]\n"\
+                result = f"[ScoreBattle(Team)]\n"\
                          f"・1曲目 {music_ls[0]}\n"\
-                         f"{team1_user_name1}チーム：{team1[0] + team1[1]}\n"\
-                         f"{team2_user_name2}チーム：{team2[0] + team2[1]}\n"\
+                         f"{team1_user_name1}チーム：{int(team1[0]) + int(team1[1])}\n"\
+                         f"{team2_user_name2}チーム：{int(team2[0]) + int(team2[1])}\n"\
                          f"・2曲目 {music_ls[1]}\n"\
-                         f"{team1_user_name1}チーム：{team1[2] + team1[3]}\n"\
-                         f"{team2_user_name2}チーム：{team2[2] + team2[3]}\n"\
+                         f"{team1_user_name1}チーム：{int(team1[2]) + int(team1[3])}\n"\
+                         f"{team2_user_name2}チーム：{int(team2[2]) + int(team2[3])}\n"\
                          f"・Total\n{team1_user_name1}：{team1_score}\n"\
                          f"{team2_user_name2}：{team2_score}\n"\
-                          "n"\
+                          "\n"\
                          f"Drow：{team1_user_name1}チーム {team2_user_name2}!"
             else:
                 await thread.send(f"{users[0]}チーム: {team1_score}\n{users[2]}チーム: {team2_score}\n\n勝者は{winner1}, {winner2}チーム!!おめでとう!!お疲れ様!!")
                 #表示用のリザルトを作成
                 result = f"[ScoreBattle(Team)]]\n"\
                          f"・1曲目 {music_ls[0]}\n"\
-                         f"{team1_user_name1}チーム：{team1[0] + team1[1]}\n"\
-                         f"{team2_user_name2}チーム：{team2[0] + team2[1]}\n"\
+                         f"{team1_user_name1}チーム：{int(team1[0]) + int(team1[1])}\n"\
+                         f"{team2_user_name2}チーム：{int(team2[0]) + int(team2[1])}\n"\
                          f"・2曲目 {music_ls[1]}\n"\
-                         f"{team1_user_name1}チーム：{team1[2] + team1[3]}\n"\
-                         f"{team2_user_name2}チーム：{team2[2] + team2[3]}\n"\
+                         f"{team1_user_name1}チーム：{int(team1[2]) + int(team1[3])}\n"\
+                         f"{team2_user_name2}チーム：{int(team2[2]) + int(team2[3])}\n"\
                          f"・Total\n{team1_user_name1}：{team1_score}\n"\
                          f"{team2_user_name2}：{team2_score}\n"\
-                          "n"\
+                          "\n"\
                          f"Winner：{client.get_user(int(winner1[2:-1])).display_name},{client.get_user(int(winner2[2:-1])).display_name}!!"
                          
         #対戦結果をチャンネルに表示
@@ -263,18 +265,17 @@ async def Singles_RandomScoreBattle(client, message, EX_flg):
             count = 0 #何曲目かをカウントする
 
             while True:
-            
-                #譜面定数を設定していない時
+                #難易度を指定していない時
                 if select_difficult[0] == "ALL" or select_difficult[0] == "all":
                     music, level_str, dif = Random_Select_Level()
                 
-                #譜面定数上下限を設定してる時
+                #難易度上下限を指定してる時
                 elif len(select_difficult) == 2:
                     level_low = select_difficult[0]
                     level_high = select_difficult[1]
                     music, level_str, dif = Random_Select_Level(level_low, level_high)
 
-                #譜面定数の下限を設定している時
+                #難易度を指定している時
                 elif len(select_difficult) == 1:
                     level = select_difficult[0]
                     music, level_str, dif = Random_Select_Level(level)
@@ -565,7 +566,14 @@ async def Doubles_RandomScoreBattle(client, message):
             await message.channel.send(an)
             await thread.send(ms)            
 
-            msg = await client.wait_for('message', check=checkLv, timeout=120)
+            #メッセージを受け取ったスレッドに対してのみ返す
+            while True:
+                msg = await client.wait_for('message', check=checkLv, timeout=120)
+        
+                if thread.id == msg.channel.id:
+                    break
+                else:
+                    pass
 
             #渡されたコマンドを分割
             select_difficult = msg.content.split(' ')
@@ -576,17 +584,17 @@ async def Doubles_RandomScoreBattle(client, message):
             count = 0 #何曲目かをカウントする
 
             while True:
-                #譜面定数上下限を設定してる時
-                #譜面定数を設定していない時
+                #難易度を指定していない時
                 if select_difficult[0] == "ALL" or select_difficult[0] == "all":
                     music, level_str, dif = Random_Select_Level()
 
+                #難易度の上下限を指定している時
                 elif len(select_difficult) == 2:
                     level_low = select_difficult[0]
                     level_high = select_difficult[1]
                     music, level_str, dif = Random_Select_Level(level_low, level_high)
 
-                #譜面定数の下限を設定している時
+                #難易度を指定している時
                 elif len(select_difficult) == 1:
                     level = select_difficult[0]
                     music, level_str, dif = Random_Select_Level(level)
@@ -686,7 +694,7 @@ async def Doubles_RandomScoreBattle(client, message):
                     await asyncio.sleep(3)
                     break
 
-                await message.channel.send(f"{count}曲目お疲れ様！！ {count+1}曲目の選曲を始めるよ。")
+                await thread.send(f"{count}曲目お疲れ様！！ {count+1}曲目の選曲を始めるよ。")
                 await asyncio.sleep(3)
                 
             return thread, team1, team2, users, music_ls
