@@ -38,13 +38,13 @@ async def on_message(message):
         if message.content == "/BattleStart":
             #グローバル変数とインスタンス作成
             global Match
-            Match = Matching.BattleMatching(Setting)
+            Match = Matching.BattleMatching(Setting, client)
             global Battle
             Battle = RatingBattle.BattleManager(Setting, client)
 
             #対戦を開始する
-            await Match.BattleStart(message.channel)
             Setting.BattleFlg = True #対戦中のフラグを立てる
+            await Match.BattleStart(message.channel)
 
     #bot自身のメッセージへの反応
     if message.author.id == Setting.BotID:

@@ -12,7 +12,7 @@ class BattleManager():
     async def RatingBattle(self, message):
         #渡されたコマンドを分割して、ユーザーidをリストに取り出す
         comannd = message.content.split(' ')
-        users_id = [comannd[2], comannd[3]]
+        users_id = [int(comannd[2]), int(comannd[3])]
         users = [f"<@{comannd[2]}>", f"<@{comannd[3]}>"]
         
         #ステータスを対戦中に変更
@@ -22,7 +22,7 @@ class BattleManager():
         username_1 = self.client.get_user(users_id[0]).display_name
         username_2 = self.client.get_user(users_id[1]).display_name
         #対戦スレッドを作成
-        thread = await message.channel.create_thread(name="{} vs {}".format(username_1, username_2),type=discord.ChannelType.public_thread)
+        thread = await self.MatchRoom.create_thread(name="{} vs {}".format(username_1, username_2),type=discord.ChannelType.public_thread)
         
         #スレッド内でのエラーをキャッチ
         try:
@@ -165,8 +165,8 @@ class BattleManager():
     #ユーザーリストでの対戦者のステータスを変更
     async def StateChange(self, users_id, State):
         df_user = pd.read_csv(self.Setting.UserFile) #ファイル読み込み
-        df_user.loc[df_user[df_user["User"] == users_id[0]].index, "State"] = State
-        df_user.loc[df_user[df_user["User"] == users_id[1]].index, "State"] = State
+        df_user.loc[df_user[df_user["Discord_ID"] == users_id[0]].index, "State"] = State
+        df_user.loc[df_user[df_user["Discord_ID"] == users_id[1]].index, "State"] = State
         df_user.to_csv(self.Setting.UserFile) #ファイル保存
         
         

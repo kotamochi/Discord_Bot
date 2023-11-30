@@ -1,4 +1,5 @@
 import csv
+import asyncio
 from datetime import datetime, timedelta
 import pandas as pd
 
@@ -18,6 +19,10 @@ class BattleMatching():
         #開始時間を取得、終了時間を計算
         start = datetime.now()
         stop = start + timedelta(hours=self.Setting.EventTime)
+        while True:
+            await self.MatchMaking()
+            await asyncio.sleep(10)
+
         
 
     #マッチ待機者を追加
@@ -80,7 +85,8 @@ class BattleMatching():
                     df_wating.drop(index=0, inplace=True)                                   #player1のデータを削除
                     
                     #待機者リストの上からマッチレート範囲に該当する人のデータを取得
-                    player2 = df_wating[player1_rate - ratingrange <=df_wating["Rating"] <= player1_rate + ratingrange].iloc[0]
+                    range_low, range_high = player1_rate - ratingrange, player1_rate + ratingrange
+                    player2 = df_wating.query('@range_low <= Rating <= @range_high')
                     if player2.empty: #マッチングが成立しなかった時
                         df_wating = pd.concat([df_wating, player1])                         #待機者リストの末尾にplayer1のデータを追加
                     else:             #マッチングが成立した時
@@ -88,7 +94,7 @@ class BattleMatching():
                         df_wating.drop(index=drop_idx, inplace=True)                        #player2のデータを削除
                         
                         #メッセージを作成
-                        messeage = f"~MatchAnnounce~ playerID {player1} {player2}"
+                        messeage = f"~MatchAnnounce~ playerID {int(player1['User'].values)} {int(player2['User'].values)}"
                             
                         #botにマッチが成立したことを知らせる
                         await self.BotRoom.send(messeage)
