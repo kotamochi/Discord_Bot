@@ -23,7 +23,7 @@ class BattleMatching():
             await self.MatchMaking()
             await asyncio.sleep(10)
 
-        
+
 
     #マッチ待機者を追加
     async def JoinList(self, user):
@@ -47,7 +47,7 @@ class BattleMatching():
         else:                                                          #上位部門
             f_num = 1 #idxを指定する
 
-        with open(self.Setting.WatingFile[f_num], 'a') as f: #ファイルを開いて追加
+        with open(self.Setting.WatingFile[f_num], 'a', newline='') as f: #ファイルを開いて追加
             writer = csv.writer(f)
             writer.writerow([user, rating])
         
@@ -100,4 +100,4 @@ class BattleMatching():
                         await self.BotRoom.send(messeage)
                     
                     #データをcsvに戻す
-                    df_wating.to_csv(file)
+                    df_wating.to_csv(file, index=False)

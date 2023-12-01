@@ -76,6 +76,9 @@ async def on_message(message):
                         return await message.channel.send("マッチングが成立しました。対戦を開始します。") #成立したので終了する
                     else:
                         await asyncio.sleep(3) #成立しなかったら3秒待って再度確認へ
+                        
+        if message.content == "/rate":
+            await Battle.NowRating(message.channel, message.author.id)
 
 #Botを起動
 client.run(TOKEN)
