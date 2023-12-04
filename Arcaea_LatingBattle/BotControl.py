@@ -7,6 +7,7 @@ import pandas as pd
 import Config
 import Matching
 import RatingBattle
+import TornamentCommand
 
 #自分のBotのアクセストークンを取得
 with open("BotToken\ToolBotKey.json") as file:
@@ -23,10 +24,13 @@ client = discord.Client(intents=discord.Intents.all())
 async def on_ready():
     #起動したらターミナルにログイン通知が表示される
     print("ログイン完了")
+    global cmd
+    cmd = TornamentCommand.Command(Setting, client)
     
 #設定の読み込み
 Setting = Config.setting()
 observars = pd.read_csv(Setting.ObserverFile) #運営側のIDを取得
+
 
 
 #メッセージ受信時に動作する処理
@@ -38,13 +42,13 @@ async def on_message(message):
         if message.content == "/BattleStart":
             #グローバル変数とインスタンス作成
             global Match
-            Match = Matching.BattleMatching(Setting, client)
+            Match = Matching.BattleMatching(Setting, client, cmd)
             global Battle
             Battle = RatingBattle.BattleManager(Setting, client)
 
             #対戦を開始する
             Setting.BattleFlg = True #対戦中のフラグを立てる
-            await Match.BattleStart(message.channel)
+            await Match.BattleStart()
 
     #bot自身のメッセージへの反応
     if message.author.id == Setting.BotID:
@@ -56,7 +60,18 @@ async def on_message(message):
         #関数を抜ける
         return
     
-    #対戦期間中、DMでのみ反応させる
+    #対戦以外のコマンドの受付
+    if message.channel.id == Setting.CommandRoom:
+        #ユーザーリストに登録
+        if message.content.startswith("/join"):
+            await cmd.Join_UserList(message)
+
+
+
+        #関数を抜ける
+        return
+    
+    #対戦期間中、DMでのみ反応する
     if message.guild == None and Setting.BattleFlg == True:
         #レート戦用コマンド
         if message.content == "/match":
@@ -65,7 +80,7 @@ async def on_message(message):
             
             #対戦待ちにリストに書き込み
             error_flg, error_content = await Match.JoinList(user_id)
-            if error_flg: #エラーが合った場合、エラー内容を送信して終了
+            if error_flg: #エラーがあった場合、エラー内容を送信して終了
                 return await message.channel.send(error_content)
             
             #マッチするまで待機する
@@ -76,9 +91,11 @@ async def on_message(message):
                         return await message.channel.send("マッチングが成立しました。対戦を開始します。") #成立したので終了する
                     else:
                         await asyncio.sleep(3) #成立しなかったら3秒待って再度確認へ
-                        
+
+    #DMでのみ反応する
+    if message.guild == None:
         if message.content == "/rate":
-            await Battle.NowRating(message.channel, message.author.id)
+            await cmd.NowRating(message.channel, message.author.id)
 
 #Botを起動
 client.run(TOKEN)

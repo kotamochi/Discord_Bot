@@ -1,7 +1,9 @@
 import Config
 import pandas as pd
 import Matching
+import TornamentCommand
 a = Config.setting()
+
 
 message= "a a 502838276294705162 1141419953942175754"
 comannd = message.split(' ')

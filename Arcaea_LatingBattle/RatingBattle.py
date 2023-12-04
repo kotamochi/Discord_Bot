@@ -13,25 +13,26 @@ class BattleManager():
     #一連の対戦を管理
     async def RatingBattle(self, message):
         try:
-            users_id, users, player_data = await self.Get_UsersData(message)
-            #ステータスを対戦中に変更
-            await self.StateChange(users_id, True)
+            users_id, users, player_data = await self.Get_UsersData(message) #対戦者データを取得
+            await self.StateChange(users_id, True) #ステータスを対戦中に変更
 
             #対戦
             try:
-                thread, score1, score2, users, music_ls = await self.Singles_ScoreBattle(users_id, users)
+                thread, score1, score2, users, music_ls = await self.Singles_ScoreBattle(users_id, users, player_data)
             #終了を選ばれた時のみ対戦を終わらせてスレッドを閉じる
             except TypeError:
-                return await message.reply(f"対戦が途中で終了されました。お疲れ様でした。")
+                await self.StateChange(users_id, False) #対戦ステータスを待機中に変更
+                await asyncio.sleep(3)
+                return await thread.delete() #スレッドを削除
 
             #スコア計算
             winner, loser, player1_score, player2_score = await self.ScoreCalculation(score1, score2, users_id[0], users_id[1])
 
             #レート計算
-            winner_rate, loser_rate = await self.RateCalculation(winner, loser, player_data)
+            winner_rate, loser_rate, ratemove= await self.RateCalculation(winner, loser, player_data)
 
             #結果を表示
-            await self.ShowResult(thread, users, player1_score, player2_score, winner)
+            await self.ShowResult(thread, users, player1_score, player2_score, winner, loser, winner_rate, loser_rate, ratemove)
 
             #結果を反映し、ステータスを戻す
             await self.ResultReflection(winner, loser, winner_rate, loser_rate)
@@ -45,7 +46,7 @@ class BattleManager():
         #トラブルがおこった際に表示
         except Exception:
             await message.channel.send("タイムアウト、もしくはコマンド不備により対戦が終了されました。")
-            await self.StateChange(users_id, False)
+            await self.StateChange(users_id, False) #対戦ステータスを待機中に変更
         
         
     #ユーザーリストでの対戦者のステータスを変更
@@ -55,6 +56,7 @@ class BattleManager():
         df_user.loc[df_user[df_user["Discord_ID"] == users_id[0]].index, "State"] = State
         df_user.loc[df_user[df_user["Discord_ID"] == users_id[1]].index, "State"] = State
         df_user.to_csv(self.Setting.UserFile, index=False) #ファイル保存
+    
     
     #結果をファイルに反映する
     async def ResultReflection(self, winner, loser, winner_rate, loser_rate):
@@ -83,50 +85,34 @@ class BattleManager():
 
 
     #対戦を行う関数    
-    async def Singles_ScoreBattle(self, users_id, users):
+    async def Singles_ScoreBattle(self, users_id, users, player_data):
         #ユーザーの表示名を取得
         username_1 = self.client.get_user(users_id[0]).display_name
         username_2 = self.client.get_user(users_id[1]).display_name
-        
+
+        #レートを取得
+        rate_1 = int(player_data.loc[player_data[player_data["Discord_ID"] == users_id[0]].index, "Rating"].values)
+        rate_2 = int(player_data.loc[player_data[player_data["Discord_ID"] == users_id[1]].index, "Rating"].values)
+
+        #ポテンシャルを取得
+        pt_1 = float(player_data.loc[player_data[player_data["Discord_ID"] == users_id[0]].index, "Potential"].values)
+        pt_2 = float(player_data.loc[player_data[player_data["Discord_ID"] == users_id[1]].index, "Potential"].values)
+
         #対戦スレッドを作成
         thread = await self.MatchRoom.create_thread(name="{} vs {}".format(username_1, username_2),type=discord.ChannelType.public_thread)
         
         #スレッド内でのエラーをキャッチ
         try:
-            #難易度選択時のメッセージチェック関数
-            def checkLv(m):
-                try:
-                    ms = m.content.split() #受け取ったメッセージをlistに
-                    for n in ms:
-                        if n[-1] == "+":
-                            float(n[:-1]) #数値であるか検証
-                        elif n == "all":
-                            pass
-                        else:
-                            float(n) #数値であるか判定
-                    return True
-                except Exception:
-                    return False
-            
             #メッセージを作成
             an = f"スレッド：{thread.mention} \n {username_1}と{username_2}の対戦を開始します"
-            ms = f"{users[0]} {users[1]} \n 120秒以内に難易度を選択して下さい(全曲の場合は「all」と入力してください)"
+            ms = f"{users[0]}(Pt:{pt_1},Rate:{rate_1}) vs {users[1]}(Pt:{pt_2},Rate:{rate_2}) \n 対戦者のpt基準で課題曲を選択します。"
             
             #メッセージを送信して難易度選択を待機
             await self.MatchRoom.send(an)
             await thread.send(ms)
 
-            #メッセージを受け取ったスレッドに対してのみ返す
-            while True:
-                msg = await self.client.wait_for('message', check=checkLv, timeout=120)
-        
-                if thread.id == msg.channel.id:
-                    break
-                else:
-                    pass
-
-            #渡されたコマンドを分割
-            select_difficult = msg.content.split(' ')
+            #選曲待ち時間を指定
+            await asyncio.sleep(5)
 
             score1, score2, music_ls = [], [], []
 
@@ -134,26 +120,13 @@ class BattleManager():
             count = 0 #何曲目かをカウントする
 
             while True:
-                #難易度を指定していない時
-                if select_difficult[0] == "ALL" or select_difficult[0] == "all":
-                    music, level_str, dif = Music_Select.Random_Select_Level()
-                
-                #難易度上下限を指定してる時
-                elif len(select_difficult) == 2:
-                    level_low = select_difficult[0]
-                    level_high = select_difficult[1]
-                    music, level_str, dif = Music_Select.Random_Select_Level(level_low, level_high)
-
-                #難易度を指定している時
-                elif len(select_difficult) == 1:
-                    level = select_difficult[0]
-                    music, level_str, dif = Music_Select.Random_Select_Level(level)
+                #課題曲から選曲を行う
+                music, level_str, dif = await Music_Select.Select_Assignment_Song(pt_1, pt_2)
 
                 #対戦開始前のメッセージを作成
                 startmsg = f"対戦曲は[{music}] {dif}:{level_str}です!!\n\n10分以内に楽曲を終了し、スコアを入力してください。\n例:9950231\n(対戦を途中終了する場合はどちらかが「終了」と入力してください)"
-                await asyncio.sleep(1)
                 await thread.send(startmsg)
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(1)
 
                 def check(m): #通常スコア用チェック関数
                     try:
@@ -217,7 +190,7 @@ class BattleManager():
                     break
 
                 await thread.send(f"{count}曲目お疲れ様でした！！ {count+1}曲目の選曲を行います。")
-                await asyncio.sleep(3)
+                await asyncio.sleep(2)
 
             return thread, score1, score2, users, music_ls
         
@@ -261,16 +234,16 @@ class BattleManager():
         winner_rate += ratemove
         loser_rate -= ratemove
         
-        return winner_rate, loser_rate
+        return winner_rate, loser_rate, ratemove
     
 
     #結果を表示
-    async def ShowResult(self, thread, users, player1_score, player2_score, winner):
-        await thread.send(f"{users[0]}: {player1_score}\n{users[1]}: {player2_score}\n\n勝者は <@{winner}> さんでした!!お疲れ様でした!!")
-        
-    #現在レートを取得
-    async def NowRating(self, dm, userid):
-        df_user = pd.read_csv(self.Setting.UserFile) #ユーザーファイル読み込み
-        now_rate = int(df_user.query("Discord_ID == @userid").loc[:,"Rating"].values) #自身のレートを取得
-        return await dm.send(f"あなたの現在レートは {now_rate} です!!") #返信
-        
+    async def ShowResult(self, thread, users, player1_score, player2_score, winner, loser, winner_rate, loser_rate, ratemove):
+        #表示名を取得
+        winner_name = self.client.get_user(winner).display_name
+        loser_name = self.client.get_user(loser).display_name
+        #結果を送信
+        await thread.send(f"{users[0]}: {player1_score}\n{users[1]}: {player2_score}\nWinner <@{winner}> (+{abs(player1_score - player2_score)})\n\n"\
+                          f"{winner_name}:Rate{winner_rate}(+{ratemove})\n"\
+                          f"{loser_name}:Rate{loser_rate}(-{ratemove})\n"
+                          )
