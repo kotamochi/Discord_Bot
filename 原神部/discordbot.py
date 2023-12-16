@@ -1,9 +1,10 @@
 import discord
 import json
 import Chunithm_RandomSelect
+import pandas as pd
 
 #自分のBotのアクセストークンを取得
-with open("Discord_APIToken.json") as file:
+with open(r"原神部/Discord_APIToken.json") as file:
     token = json.load(file)
 
 #自分のBotのアクセストークン
@@ -37,7 +38,10 @@ async def on_message(message):
     if message.content == '/arcaea':
         await message.channel.send("https://arcaea.lowiro.com/ja")
     if message.content == '/mario':
-        await message.channel.send("マリオです", file=discord.File(r"C:\Users\kotam\OneDrive\画像\mario.png"))
+        a = pd.read_csv(r"原神部/image.csv")
+        b = a.loc[0,"画像データ"]
+        c = str(a['画像データ'].values)
+        await message.channel.send("マリオです", file=discord.File(b))
     if message.content == '/原神部':
         await message.channel.send("原神部集大成", file=discord.File(r"C:\Users\kotam\OneDrive\画像\genshinbu.jpg"))
     if message.content == '/kirby':
