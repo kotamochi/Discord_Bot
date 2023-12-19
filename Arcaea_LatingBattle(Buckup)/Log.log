@@ -1,0 +1,9 @@
+2023-12-07 15:15:58,714 [ERROR] TornamentCommand.py, lines 94. can't send non-None value to a just-started coroutine
+2023-12-07 15:19:27,906 [ERROR] TornamentCommand.py, lines 94. 404 Not Found (error code: 10013): Unknown User
+2023-12-13 13:57:23,512 [ERROR] Matching.py, lines 147. '[0] not found in axis'
+2023-12-13 13:59:30,372 [ERROR] Matching.py, lines 147. The truth value of a Series is ambiguous. Use a.empty, a.bool(), a.item(), a.any() or a.all().
+2023-12-13 15:07:20,533 [ERROR] TornamentCommand.py, lines 151. "None of [Index(['1'], dtype='object')] are in the [columns]"
+2023-12-13 15:07:37,323 [ERROR] TornamentCommand.py, lines 151. "None of [Index(['1'], dtype='object')] are in the [columns]"
+2023-12-13 15:12:22,974 [ERROR] TornamentCommand.py, lines 151. '1'
+2023-12-13 15:15:19,704 [ERROR] TornamentCommand.py, lines 151. '1'
+2023-12-13 15:17:15,774 [ERROR] TornamentCommand.py, lines 151. '1'
