@@ -3,11 +3,13 @@ import logging
 #各種設定を行う
 class setting():
     #ファイルパス
+    BotTokenFile = "BotToken\ToolBotKey.json" #BOTのトークンキーファイル
     WatingFile = ["Datas/MatchWaitList_1.csv", "Datas/MatchWaitList_2.csv"] #マッチ待機ファイル
     UserFile = "Datas/UserList.csv" #参加者登録ファイル
     ObserverFile = "Datas/ObserverID.csv" #大会運営コマンド起動可能者ファイル
     BotID = 1143179888984064130 #BOTのユーザーID
     MasterID = 502838276294705162 #私のユーザーID
+    EventRoom = 1186478552275763270 #大会のアナウンスを行うチャンネル
     MatchRoom = 1180148416442023966 #対戦チャンネル
     CommandRoom = 1180159444873658431 #コマンド系を受け付けるチャンネル
     BotRoom = 1180149262231797802 #裏でのbot動作用チャンネル

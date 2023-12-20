@@ -11,7 +11,7 @@ class BattleManager():
         self.MatchRoom = client.get_channel(Setting.MatchRoom)
     
     #一連の対戦を管理
-    async def RatingBattle(self, message):
+    async def rating_battle(self, message):
         try:
             users_id, users, player_data = await self.Get_UsersData(message) #対戦者データを取得
             await self.StateChange(users_id, True) #ステータスを対戦中に変更

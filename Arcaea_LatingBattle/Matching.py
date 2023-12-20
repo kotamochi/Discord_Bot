@@ -12,38 +12,41 @@ class BattleMatching():
 
 
     #レート戦開始
-    async def BattleStart(self):
+    async def battle_start(self):
         await self.MatchRoom.send("対戦開始~~~~~~~~~~~~~~~~~~~~~~~~~!!!")
         #対戦期間中のエラーをキャッチ
         try:
-            await self.BattleManagement() #対戦管理関数を起動
+            await self.battle_management() #対戦管理関数を起動
+        
+        #問題が発生した時    
         except Exception as e:
             self.Setting.logger.error(e) #エラーをログに追記
             return await self.MatchRoom.send("大会進行に不具合が発生しました。対戦を中断し、運営からの案内をお待ちください")
-        else: #問題なく終了した時
+        
+        #問題なく終了した時
+        else: 
             await self.MatchRoom.send("対戦終了~~~~~~~~~~~~~~~~~~~~~~~~~!!\nお疲れ様でした！！！")
             self.Setting.BattleFlg = False #対戦中のフラグを消す
             #参加者のDMに最終レートを表示
-            await self.Command.TornamentResult_DM()
-            
-            return
+            await self.Command.my_result_dm()
 
 
     #対戦を管理する関数
-    async def BattleManagement(self):
+    async def battle_management(self):
         #定期実行スケジュールを作成
         try:
             async with asyncio.timeout(self.Setting.EventTime):             #マッチ時間(対戦時間)を設定
                 async with asyncio.TaskGroup() as tg:
-                    matchtask = tg.create_task(self.MatchMaking())          #マッチメイキングの関数
-                    ranktask = tg.create_task(self.Command.ShowRanking())   #ランキング表示の関数
+                    matchtask = tg.create_task(self.match_making())          #マッチメイキングの関数
+                    ranktask = tg.create_task(self.Command.show_ranking())   #ランキング表示の関数
 
         except TimeoutError: #対戦期間終了後に実行
             return
 
 
     #マッチ待機者を追加
-    async def JoinList(self, user):
+    async def join_list(self, user):
+        #エラーをキャッチ
         try:
             #ユーザーリストからIDを使用して自身のデータを取得
             df_user = pd.read_csv(self.Setting.UserFile)
@@ -77,7 +80,7 @@ class BattleMatching():
             return await self.BotRoom.send(f"<@{self.Setting.MasterID}>, エラーが発生したよ")
 
     #マッチングが行われたか確認する
-    async def MatchCheck(self, user):
+    async def match_check(self, user):
         #ユーザーリストからIDを使用して自身のデータを取得
         df_user = pd.read_csv(self.Setting.UserFile)
         df_mydata = df_user[df_user["Discord_ID"] == user]
@@ -90,7 +93,8 @@ class BattleMatching():
     
 
     #マッチメイキングを行う関数
-    async def MatchMaking(self):
+    async def match_making(self):
+        #エラーをキャッチ
         try:
             #n秒おきにマッチング処理を行う
             while True:

@@ -32,3 +32,5 @@ df_user = pd.read_csv(a.UserFile) #ユーザーデータ取得
 for _, player_data in df_user.iterrows():
       id = player_data["Discord_ID"]
       print(id)
+      
+print(int(0/60))
