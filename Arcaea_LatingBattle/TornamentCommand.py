@@ -10,6 +10,15 @@ class Command():
         self.EventRoom = client.get_channel(self.Setting.EventRoom)
 
 
+    async def get_observars(self, ctx):
+        '''運営メンバーのIDを取得'''
+        #運営ロールをつけている人を取得
+        role_member = ctx.guild.get_role(self.Setting.ObserverRole).members
+        observers_id = [member.id for member in role_member]
+
+        return observers_id
+            
+
     async def join_userlist(self, ctx, pt):
         '''ユーザー登録を行う'''
         try:
@@ -57,7 +66,7 @@ class Command():
             #n秒おきにランキング表示処理を行う
             while True:
                 #経過時間を表示
-                await self.EventRoom.send(f"~~開始{int(time/60)}分経過~~") #送信
+                await self.EventRoom.send(f"---開始{int(time/60)}分経過----------") #送信
                 
                 #データの読み込み
                 df_user = pd.read_csv(self.Setting.UserFile)
@@ -77,7 +86,7 @@ class Command():
                                   f"{int(rank)}:{data['Name']} Rate:{data['Rating']}"
 
                 await self.EventRoom.send(ranking_msg) #送信
-                await self.EventRoom.send("--------------------") #送信
+                await self.EventRoom.send("---------------------------") #送信
 
                 #上位部門のランキング表示
                 ranking_msg = "現在のランキング [12.40↑部門]"
@@ -132,37 +141,37 @@ class Command():
                               f"{int(rank)}:{data['Name']} Rate:{data['Rating']}"
             
             #優勝者を表示
-            winner_low = df_user_low.loc["1"]
+            winner_low = df_user_low[df_user_low.index.values == 1]
             winner_msg_low = "[12.40↓部門]優勝者は..."
-            winner_name_low = " "
+            winner_name_low = ""
             for _, data in winner_low.iterrows():
-                winner_name_low = f"{winner_name_low}{data['Name']}"
+                winner_name_low = f"{winner_name_low}{data['Name']} "
             
             #送信メッセージを作成
             winner_msg_low = "\n" + winner_msg_low + winner_name_low + "!!!🎉🎉🎉"
                 
             #結果を送信
-            await self.CommandRoom.send(ranking_msg_low) #ランキング
-            await self.CommandRoom.send(winner_msg_low) #優勝者
+            await self.EventRoom.send(ranking_msg_low) #ランキング
+            await self.EventRoom.send(winner_msg_low) #優勝者
             
             #上位部門のランキング表示
-            ranking_msg_high = "現在のランキング [12.40↑部門]"
+            ranking_msg_high = "最終ランキング [12.40↑部門]"
             for rank, data in df_user_high.iterrows(): #一位から順に表示メッセージを作成
                 ranking_msg_high = f"{ranking_msg_high}\n"\
                               f"{int(rank)}:{data['Name']} Rate:{data['Rating']}"
                               
             #優勝者を表示
-            winner_high = df_user_high.loc["1"]
+            winner_high = df_user_high[df_user_high.index == 1]
             winner_msg_high = "[12.40↑部門]優勝者は..."
-            winner_name_high = " "
+            winner_name_high = ""
             for _, data in winner_high.iterrows():
-                winner_name_high = f"{winner_name_high}{data['Name']}"
+                winner_name_high = f"{winner_name_high}{data['Name']} "
             
             #送信メッセージを作成
             winner_msg_high = "\n" + winner_msg_high + winner_name_high + "!!!🎉🎉🎉"
             
-            await self.CommandRoom.send(ranking_msg_high) #送信
-            await self.CommandRoom.send(winner_msg_high) #優勝者
+            await self.EventRoom.send(ranking_msg_high) #送信
+            await self.EventRoom.send(winner_msg_high) #優勝者
         
         #問題が発生した時
         except Exception as e:

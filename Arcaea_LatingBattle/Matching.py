@@ -7,13 +7,13 @@ class BattleMatching():
     def __init__(self, Setting, client, cmd):
         self.Setting = Setting #設定の読み込み
         self.Command = cmd
-        self.MatchRoom = client.get_channel(self.Setting.MatchRoom)
+        self.EventRoom = client.get_channel(self.Setting.EventRoom)
         self.BotRoom = client.get_channel(self.Setting.BotRoom)
 
 
     #レート戦開始
-    async def battle_start(self):
-        await self.MatchRoom.send("対戦開始~~~~~~~~~~~~~~~~~~~~~~~~~!!!")
+    async def battle_start(self, ctx):
+        await ctx.response.send_message("対戦開始~~~~~~~~~~~~~~~~~~~~~~~~~!!!")
         #対戦期間中のエラーをキャッチ
         try:
             await self.battle_management() #対戦管理関数を起動
@@ -21,14 +21,14 @@ class BattleMatching():
         #問題が発生した時    
         except Exception as e:
             self.Setting.logger.error(e) #エラーをログに追記
-            return await self.MatchRoom.send("大会進行に不具合が発生しました。対戦を中断し、運営からの案内をお待ちください")
+            return await self.EventRoom.send("大会進行に不具合が発生しました。対戦を中断し、運営からの案内をお待ちください")
         
         #問題なく終了した時
         else: 
-            await self.MatchRoom.send("対戦終了~~~~~~~~~~~~~~~~~~~~~~~~~!!\nお疲れ様でした！！！")
+            await self.EventRoom.send("対戦終了~~~~~~~~~~~~~~~~~~~~~~~~~!!\nお疲れ様でした！！！")
             self.Setting.BattleFlg = False #対戦中のフラグを消す
             #参加者のDMに最終レートを表示
-            await self.Command.my_result_dm()
+            #await self.Command.my_result_dm()
 
 
     #対戦を管理する関数

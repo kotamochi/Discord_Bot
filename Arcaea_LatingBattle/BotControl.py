@@ -3,7 +3,6 @@ import csv
 import json
 import asyncio
 import discord
-from discord.ext import commands
 from discord import app_commands
 import pandas as pd
 import Config
@@ -33,8 +32,6 @@ async def on_ready():
     #常設コマンドのインスタンス作成
     global cmd
     cmd = TornamentCommand.Command(Setting, client)
-    global observars
-    observars = pd.read_csv(Setting.ObserverFile) #運営側のIDを取得
     await tree.sync()
     
 
@@ -51,7 +48,7 @@ async def event_start(ctx):
 
         #対戦を開始
         Setting.BattleFlg = True #対戦中のフラグを立てる
-        await match.battle_start()
+        await match.battle_start(ctx)
     else:
         await ctx.response.send_message("このコマンドは管理者しか使えないよ")
 
@@ -59,14 +56,16 @@ async def event_start(ctx):
 @tree.command(name="eventresult", description="大会の最終結果を発表(管理者のみ)")
 async def event_result(ctx):
     '''大会の最終結果を表示する(Masterのみ使用可)'''
-    if ctx.channel_id == Setting.EventRoom and ctx.author_id == Setting.MasterID:
+    if ctx.channel_id == Setting.EventRoom and ctx.user.id == Setting.MasterID:
+        await ctx.response.send_message("結果発表~~~~~~~~~~~~~!!!!!!!!!")
+        await asyncio.sleep(3)
         #最終結果表示
         await cmd.show_result()
     else:
         await ctx.response.send_message("このコマンドは管理者しか使えないよ")
 
 
-@tree.command(name='join', description='ユーザー登録を行うよ')
+@tree.command(name="join", description="ユーザー登録を行うよ")
 async def join(ctx, pt:float):
     '''ユーザー登録を行う'''
     if ctx.channel_id == Setting.CommandRoom:
@@ -75,7 +74,7 @@ async def join(ctx, pt:float):
         await ctx.response.send_message("ここでは登録できないよ\nCommandチャンネルで登録してね")
         
         
-@tree.command(name='match', description='対戦マッチングを始めるよ(対戦期間中,DMのみ)')     
+@tree.command(name="match", description="対戦を始めるよ(期間中,DMのみ)")     
 async def matching(ctx):
     '''マッチングを開始する'''
     if ctx.guild_id == None: #DMであるか
@@ -102,7 +101,7 @@ async def matching(ctx):
         await ctx.response.send_message("ここでは使えないよ。ToolBotsのDMで使用してね")
 
 
-@tree.command(name='rate', description='自分の現在レートが見れるよ(DMのみ)')
+@tree.command(name="rate", description="自分の現在レートが見れるよ(DMのみ)")
 async def rate(ctx):
     '''現在レートを表示する'''
     if ctx.guild_id == None: #DMであるか
@@ -114,7 +113,8 @@ async def rate(ctx):
 @tree.command(name='selfmatch', description="手動でマッチングを行うよ(運営のみ)")
 async def self_match(ctx, player1:discord.User, player2:discord.User):
     '''非常時に手動マッチングを行う'''
-    if ctx.channel_id == Setting.MatchRoom and observars.isin([ctx.user.id]).any().any():
+    observers = await cmd.get_observars(ctx) #運営者一覧を取得
+    if ctx.channel_id == Setting.MatchRoom and ctx.user.id in observers:
         #コマンドからBotへの指令文を作成して送信
         msg = f"~MatchAnnounce~ playerID {player1[2:-1]} {player2[2:-1]}"
         BotRoom = client.get_channel(Setting.BotRoom)
@@ -124,7 +124,7 @@ async def self_match(ctx, player1:discord.User, player2:discord.User):
         
 
 @client.event
-async def on_messeage(message):
+async def on_message(message):
     '''Botへの指令を受け取る'''
     #bot自身のメッセージへの反応
     if message.author.id == Setting.BotID:

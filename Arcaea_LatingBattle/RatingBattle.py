@@ -10,33 +10,34 @@ class BattleManager():
         self.client = client
         self.MatchRoom = client.get_channel(Setting.MatchRoom)
     
+    
     #一連の対戦を管理
     async def rating_battle(self, message):
         try:
-            users_id, users, player_data = await self.Get_UsersData(message) #対戦者データを取得
-            await self.StateChange(users_id, True) #ステータスを対戦中に変更
+            users_id, users, player_data = await self.get_usersdata(message) #対戦者データを取得
+            await self.state_change(users_id, True) #ステータスを対戦中に変更
             
             #DMにマッチ通知が届くまで待機
             await asyncio.sleep(3)
 
             #対戦
             try:
-                thread, score1, score2, users, music_ls = await self.Singles_ScoreBattle(users_id, users, player_data)
+                thread, score1, score2, users, music_ls = await self.singles_scorebattle(users_id, users, player_data)
             #終了を選ばれた時のみ対戦を終わらせてスレッドを閉じる
             except TypeError:
-                return await self.StateChange(users_id, False) #対戦ステータスを待機中に変更
+                return await self.state_change(users_id, False) #対戦ステータスを待機中に変更
 
             #スコア計算
-            winner, loser, player1_score, player2_score = await self.ScoreCalculation(score1, score2, users_id[0], users_id[1])
+            winner, loser, player1_score, player2_score = await self.score_calculation(score1, score2, users_id[0], users_id[1])
 
             #レート計算
-            winner_rate, loser_rate, ratemove= await self.RateCalculation(winner, loser, player_data)
+            winner_rate, loser_rate, ratemove= await self.rate_calculation(winner, loser, player_data)
 
             #結果を表示
-            await self.ShowResult(thread, users, player1_score, player2_score, winner, loser, winner_rate, loser_rate, ratemove)
+            await self.show_result(thread, users, player1_score, player2_score, winner, loser, winner_rate, loser_rate, ratemove)
 
             #結果を反映し、ステータスを戻す
-            await self.ResultReflection(winner, loser, winner_rate, loser_rate)
+            await self.result_reflection(winner, loser, winner_rate, loser_rate)
             
             #30秒後スレッドを閉じて終了
             await asyncio.sleep(1) #間を空ける
@@ -48,11 +49,11 @@ class BattleManager():
         except Exception as e:
             self.Setting.logger.error(e)
             await message.channel.send("タイムアウト、もしくはコマンド不備により対戦が終了されました。")
-            await self.StateChange(users_id, False) #対戦ステータスを待機中に変更
+            await self.state_change(users_id, False) #対戦ステータスを待機中に変更
         
         
     #ユーザーリストでの対戦者のステータスを変更
-    async def StateChange(self, users_id, State):
+    async def state_change(self, users_id, State):
         df_user = pd.read_csv(self.Setting.UserFile) #ファイル読み込み
         #データ更新
         df_user.loc[df_user[df_user["Discord_ID"] == users_id[0]].index, "State"] = State
@@ -61,7 +62,7 @@ class BattleManager():
     
     
     #結果をファイルに反映する
-    async def ResultReflection(self, winner, loser, winner_rate, loser_rate):
+    async def result_reflection(self, winner, loser, winner_rate, loser_rate):
         State = False
         df_user = pd.read_csv(self.Setting.UserFile) #ファイル読み込み
         #データ更新
@@ -73,7 +74,7 @@ class BattleManager():
         
         
     #ユーザーデータを整理する
-    async def Get_UsersData(self, message):
+    async def get_usersdata(self, message):
         #渡されたコマンドを分割して、ユーザーidをリストに取り出す
         comannd = message.content.split(' ')
         player_id = [int(comannd[2]), int(comannd[3])]
@@ -87,7 +88,7 @@ class BattleManager():
 
 
     #対戦を行う関数    
-    async def Singles_ScoreBattle(self, users_id, users, player_data):
+    async def singles_scorebattle(self, users_id, users, player_data):
         #ユーザーの表示名を取得
         username_1 = self.client.get_user(users_id[0]).display_name
         username_2 = self.client.get_user(users_id[1]).display_name
@@ -210,7 +211,7 @@ class BattleManager():
 
 
     #スコア対決の計算
-    async def ScoreCalculation(self, user1, user2, name1, name2):
+    async def score_calculation(self, user1, user2, name1, name2):
 
         #対戦者名とスコアを取得
         user1_score = 0
@@ -229,12 +230,21 @@ class BattleManager():
 
 
     #レート計算を行う
-    async def RateCalculation(self, win_id, lose_id, player_data):
+    async def rate_calculation(self, win_id, lose_id, player_data):
         #レート差を計算して、倍率調整
         winner_rate = int(player_data.query("Discord_ID == @win_id").loc[:,"Rating"].iloc[-1])
         loser_rate = int(player_data.query("Discord_ID == @lose_id").loc[:,"Rating"].iloc[-1])
         
         ratediff = loser_rate - winner_rate  #差を求める 900 - 1000
+
+        #レート範囲外のレート差の時、レート差が最大分離れているとして扱う
+        if ratediff > self.Setting.RatingRange:
+            ratediff = self.Setting.RatingRange
+        elif ratediff < -self.Setting.RatingRange:
+            ratediff = -self.Setting.RatingRange
+        else:
+            pass
+
         ratediff = round(ratediff / 20) * 20 #20区切りで一番近い値にする
         ratemove = self.Setting.RateTrend_Dic.get(ratediff) #辞書から上下レート値を取得
         #勝敗に応じたレートを付与する
@@ -245,7 +255,7 @@ class BattleManager():
     
 
     #結果を表示
-    async def ShowResult(self, thread, users, player1_score, player2_score, winner, loser, winner_rate, loser_rate, ratemove):
+    async def show_result(self, thread, users, player1_score, player2_score, winner, loser, winner_rate, loser_rate, ratemove):
         #表示名を取得
         winner_name = self.client.get_user(winner).display_name
         loser_name = self.client.get_user(loser).display_name
