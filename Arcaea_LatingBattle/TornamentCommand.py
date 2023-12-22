@@ -41,8 +41,8 @@ class Command():
             return await ctx.response.send_message("コマンドが間違っているよ!もう一度やり直してみて!")
         
 
-    #現在レートをDMに送信
     async def now_rating(self, ctx):
+        '''レートを表示'''
         #エラーをキャッチ
         try:
             #情報を変数に
@@ -58,8 +58,8 @@ class Command():
             self.Setting.logger.error(e) #エラーをログに追記
         
     
-    #現在のランキングを表示
     async def show_ranking(self):
+        '''ランキングを表示'''
         #エラーをキャッチ
         try:
             time = 0 #経過時間
@@ -83,7 +83,7 @@ class Command():
                 ranking_msg = "現在のランキング [12.39↓部門]"
                 for rank, data in df_user_low.iterrows(): #一位から順に表示メッセージを作成
                     ranking_msg = f"{ranking_msg}\n"\
-                                  f"{int(rank)}:{data['Name']} Rate:{data['Rating']}"
+                                  f"{int(rank)}:{data['Name']} Rate：{data['Rating']}"
 
                 await self.EventRoom.send(ranking_msg) #送信
                 await self.EventRoom.send("---------------------------") #送信
@@ -92,7 +92,7 @@ class Command():
                 ranking_msg = "現在のランキング [12.40↑部門]"
                 for rank, data in df_user_high.iterrows(): #一位から順に表示メッセージを作成
                     ranking_msg = f"{ranking_msg}\n"\
-                                  f"{int(rank)}:{data['Name']} Rate:{data['Rating']}"
+                                  f"{int(rank)}:{data['Name']} Rate：{data['Rating']}"
 
                 await self.EventRoom.send(ranking_msg) #送信
                 
@@ -103,15 +103,15 @@ class Command():
         except Exception as e:
             self.Setting.logger.error(e) #エラーをログに追記
             
-            
-    #参加者全員に現在のレートを送信
+
     async def my_result_dm(self):
+        '''個人成績を送信'''
         #エラーをキャッチ
         try:
             df_user = pd.read_csv(self.Setting.UserFile) #ユーザーデータ取得
             for _, player_data in df_user.iterrows():
                 dm = await self.client.fetch_user(player_data["Discord_ID"]) #ユーザーのDiscord情報を取得
-                await dm.send(f"最終レートは{player_data['Rating']}でした!!") #DMにレートを送信
+                await dm.send(f"最終レートは {player_data['Rating']} でした!!") #DMにレートを送信
 
         #問題が発生した時
         except Exception as e:
@@ -119,8 +119,8 @@ class Command():
             await self.BotRoom.send(f"<@{self.Setting.MasterID}>, エラーが発生したよ")
 
 
-    #最終結果を表示
     async def show_result(self):
+        '''最終の結果発表を行う'''
         #エラーをキャッチ
         try:
             #データの読み込み
@@ -138,7 +138,7 @@ class Command():
             ranking_msg_low = "最終ランキング [12.39↓部門]"
             for rank, data in df_user_low.iterrows(): #一位から順に表示メッセージを作成
                 ranking_msg_low = f"{ranking_msg_low}\n"\
-                              f"{int(rank)}:{data['Name']} Rate:{data['Rating']}"
+                              f"{int(rank)}:{data['Name']} Rate：{data['Rating']}"
             
             #優勝者を表示
             winner_low = df_user_low[df_user_low.index.values == 1]
@@ -158,7 +158,7 @@ class Command():
             ranking_msg_high = "最終ランキング [12.40↑部門]"
             for rank, data in df_user_high.iterrows(): #一位から順に表示メッセージを作成
                 ranking_msg_high = f"{ranking_msg_high}\n"\
-                              f"{int(rank)}:{data['Name']} Rate:{data['Rating']}"
+                              f"{int(rank)}:{data['Name']} Rate：{data['Rating']}"
                               
             #優勝者を表示
             winner_high = df_user_high[df_user_high.index == 1]

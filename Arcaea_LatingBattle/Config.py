@@ -1,18 +1,21 @@
+import os
 import logging
+import dotenv
 
 #各種設定を行う
 class setting():
+    dotenv.load_dotenv()
     #ファイルパス
     BotTokenFile = "BotToken\ToolBotKey.json" #BOTのトークンキーファイル
     WatingFile = ["Datas/MatchWaitList_1.csv", "Datas/MatchWaitList_2.csv"] #マッチ待機ファイル
     UserFile = "Datas/UserList.csv" #参加者登録ファイル
-    BotID = 1143179888984064130 #BOTのユーザーID
-    MasterID = 502838276294705162 #私のユーザーID
-    ObserverRole = 1180149351000055838 #運営ロール
-    EventRoom = 1186478552275763270 #大会のアナウンスを行うチャンネル
-    MatchRoom = 1180148416442023966 #対戦チャンネル
-    CommandRoom = 1180159444873658431 #コマンド系を受け付けるチャンネル
-    BotRoom = 1180149262231797802 #裏でのbot動作用チャンネル
+    BotID = os.environ['BotID'] #BOTのユーザーID
+    MasterID = os.environ['MasterID'] #私のユーザーID
+    ObserverRole = os.environ['ObserverRole'] #運営ロール
+    EventRoom = os.environ['EventRoom'] #大会のアナウンスを行うチャンネル
+    MatchRoom = os.environ['MatchRoom'] #対戦チャンネル
+    CommandRoom = os.environ['CommandRoom'] #コマンド系を受け付けるチャンネル
+    BotRoom = os.environ['BotRoom'] #裏でのbot動作用チャンネル
     GroupDivision = 12.40 #部門を分けるpt値
     RatingRange = 100 #対戦のマッチレート幅(+-)
     BattleFlg = False #対戦が開始しているかを判定する
