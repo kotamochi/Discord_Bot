@@ -708,6 +708,15 @@ async def User_Status(client, message, file_path):
     return result.sort_values(by=["Win", "Drow", "Lose"])
 
 
+async def task_create():
+    """今週の課題曲を指定"""
+    music, level_str, dif = Random_Select_Level("9")
+    
+    msg = f"「{music}」{dif}:{level_str}" 
+    #メッセージを作成
+    embed = discord.Embed(title="今週の課題曲",description=msg)
+    embed.add_field(name="今週の課題曲", value=msg, inline=False)
+    
 #現在使用していない機能
 #ポテンシャル値の計算
 def Potential_Score(music, score, difficult="FTR"):

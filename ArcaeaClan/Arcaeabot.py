@@ -1,14 +1,13 @@
 import os
 import json
+import datetime
 import discord
+from discord.ext import tasks
 import Arcaea_command
 
-
-#自分のBotのアクセストークンを取得
-with open("ArcaeabotKey.json") as file:
-    token = json.load(file)
-
 #自分のBotのアクセストークン
+with open("Token_Key.json") as f:
+    token = json.load(f)
 TOKEN = token["TokenKey"]
 
 #接続に必要なオブジェクトを生成
@@ -19,13 +18,33 @@ client = discord.Client(intents=discord.Intents.all())
 async def on_ready():
     #起動したらターミナルにログイン通知が表示される
     print('ログインしました')
+    chack_online.start() #動作確認処理
+
+@tasks.loop(seconds=60)
+async def chack_online():
+    # 現在の時刻
+    now = datetime.datetime.now()
+    oncheaktime =now.strftime('%H:%M')
+    musictasktime = now.strftime('%A %H:%M')
+    
+    if oncheaktime == '09:00':
+        Creater = await client.fetch_user(Creater_ID)
+        Creater_DM = await Creater.create_dm()
+        await Creater_DM.send("起動してるよ")
+        await Creater_DM.send(file=discord.File('BattleLog.csv'))
+        await Creater_DM.send(file=discord.File('BattleLog_EXScore.csv'))
+
+    if musictasktime == "Monday 00:00":
+        Arcaea_command.task_create()
+
 
 #ID系統の設定
+Creater_DM = 1154865322243928174
+Creater_ID = 502838276294705162
 MemberRole_ID = 1149393993159942214
 RandomSelect_CH = 1148058499520135198
 RandomBattle_CH = 1154008770737864714
-Creater_ID = 502838276294705162 #私のユーザーID
-Creater_RoomID = 1153650397634891807 #開発用チャンネルID
+Create_RoomID = 1153650397634891807
 
 #サーバー入室時にロールを付与する
 @client.event
@@ -40,7 +59,7 @@ async def on_member_join(member):
 @client.event
 async def on_message(message):
     #ランダム選曲チャンネル以外では反応しない
-    if message.channel.id == RandomSelect_CH:
+    if message.channel.id == RandomSelect_CH or message.channel.id == Creater_DM:
         #課題曲を作成する
         if message.content.startswith('/a rand'):
             try:
@@ -53,7 +72,7 @@ async def on_message(message):
                     level_high = comannd[3]
                     music, level_str, dif  = Arcaea_command.Random_Select_Level(level_low, level_high)
 
-                #譜面定数の下限を設定している時
+                #譜面定数を設定している時
                 elif len(comannd) == 3:
                     level = comannd[2]
                     music, level_str, dif  = Arcaea_command.Random_Select_Level(level)
@@ -68,7 +87,7 @@ async def on_message(message):
                 await message.channel.send("コマンドが間違ってるかも。もう一度試してみて!")
 
     #ランダム1v1チャンネル以外では反応しない
-    if message.channel.id == RandomBattle_CH or message.channel.id == Creater_RoomID:
+    if message.channel.id == RandomBattle_CH or message.channel.id == Create_RoomID:
         #1v1勝負
         if message.content.startswith('/a vs'):
             await Arcaea_command.Arcaea_ScoreBattle(client, message, 0) #対戦用関数を実行
@@ -160,7 +179,7 @@ async def on_message(message):
             await message.reply(reply)
 
 try:
-    client.run(TOKEN)
+    client.run(TOKEN) #bot起動処理
 except discord.errors.HTTPException:
     os.system('kill 1')
     os.system("python restarter.py")
