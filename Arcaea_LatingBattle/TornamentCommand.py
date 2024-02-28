@@ -23,7 +23,7 @@ class Command():
         '''ユーザー登録を行う'''
         try:
             userid = ctx.user.id
-            disp_name = ctx.user.display_name#self.client.get_user(userid).display_name
+            disp_name = ctx.user.display_name
 
             df_user = pd.read_csv(self.Setting.UserFile) #ユーザーリストを取得
             #既に登録されているか確認
@@ -102,6 +102,7 @@ class Command():
         #問題が発生した時
         except Exception as e:
             self.Setting.logger.error(e) #エラーをログに追記
+            await self.BotRoom.send(f"<@{self.Setting.MasterID}>, 定期ランキング表示でエラーが発生したよ")
             
 
     async def my_result_dm(self):
@@ -116,7 +117,7 @@ class Command():
         #問題が発生した時
         except Exception as e:
             self.Setting.logger.error(e) #エラーをログに追記
-            await self.BotRoom.send(f"<@{self.Setting.MasterID}>, エラーが発生したよ")
+            await self.BotRoom.send(f"<@{self.Setting.MasterID}>, 個人成績表示でエラーが発生したよ")
 
 
     async def show_result(self):
@@ -176,4 +177,4 @@ class Command():
         #問題が発生した時
         except Exception as e:
             self.Setting.logger.error(e) #エラーをログに追記
-            await self.BotRoom.send(f"<@{self.Setting.MasterID}>, エラーが発生したよ")
+            await self.BotRoom.send(f"<@{self.Setting.MasterID}>, 最終結果発表でエラーが発生したよ")

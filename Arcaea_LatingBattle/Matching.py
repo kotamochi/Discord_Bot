@@ -28,7 +28,7 @@ class BattleMatching():
             await self.EventRoom.send("対戦終了~~~~~~~~~~~~~~~~~~~~~~~~~!!\nお疲れ様でした！！！")
             self.Setting.BattleFlg = False #対戦中のフラグを消す
             #参加者のDMに最終レートを表示
-            #await self.Command.my_result_dm()
+            await self.Command.my_result_dm()
 
 
     #対戦を管理する関数
@@ -77,7 +77,7 @@ class BattleMatching():
         #エラーがあった際にログを追記して知らせる
         except Exception as e: 
             self.Setting.logger.error(e)
-            return await self.BotRoom.send(f"<@{self.Setting.MasterID}>, エラーが発生したよ")
+            return await self.BotRoom.send(f"<@{self.Setting.MasterID}>, マッチ登録でエラーが発生したよ")
 
     #マッチングが行われたか確認する
     async def match_check(self, user):
@@ -115,10 +115,10 @@ class BattleMatching():
                         for _ in range(len(df_wating) // 2): #2人で1マッチなのでリストの1/2の数だけ回す
                             player1 = df_wating.head(1)                                             #待機者のデータ取得
                             player1_rate = int(player1["Rating"].values)                            #レート情報を変数に入れる
-                            df_wating.drop(index=0, inplace=True)                                   #player1のデータを削除
+                            df_wating.drop(df_wating[df_wating["User"] == int(player1["User"].values)].index, inplace=True) #player1のデータを削除
 
                             #待機者リストの上からマッチレート範囲に該当する人のデータを取得
-                            if player1["Count"].values >= 8:
+                            if player1["Count"].values >= 5:
                                 range_low, range_high = player1_rate - ratingrange*5, player1_rate + ratingrange*5
                             else:
                                 range_low, range_high = player1_rate - ratingrange, player1_rate + ratingrange
@@ -126,13 +126,12 @@ class BattleMatching():
 
                             #マッチングが成立しなかった時
                             if player2.empty:
-                                player1["Count"] += 1
-                                df_wating = pd.concat([df_wating, player1])                         #待機者リストの末尾にplayer1のデータを追加
+                                player1.loc[:, "Count"] += 1
+                                df_wating = pd.concat([df_wating, player1]) #待機者リストの末尾にplayer1のデータを追加
 
                             #マッチングが成立した時
                             else:
-                                drop_idx = df_wating[df_wating["User"] == player2["User"]].index[0] #player2のindexを取得
-                                df_wating.drop(index=drop_idx, inplace=True)                        #player2のデータを削除
+                                df_wating.drop(df_wating[df_wating["User"] == int(player2["User"].values)].index, inplace=True)
 
                                 #メッセージを作成
                                 message = f"~MatchAnnounce~ playerID {int(player1['User'].values)} {int(player2['User'].values)}"
@@ -149,4 +148,4 @@ class BattleMatching():
         #エラーがあった際にログを追記して知らせる
         except Exception as e:
             self.Setting.logger.error(e)
-            return await self.BotRoom.send(f"<@{self.Setting.MasterID}>, エラーが発生したよ")
+            return await self.BotRoom.send(f"<@{self.Setting.MasterID}>, マッチメイキングでエラーが発生したよ")

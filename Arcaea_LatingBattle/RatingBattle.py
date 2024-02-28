@@ -41,8 +41,8 @@ class BattleManager():
             
             #30秒後スレッドを閉じて終了
             await asyncio.sleep(1) #間を空ける
-            await thread.send(f"このスレッドは30秒後、自働的に削除されます。")
-            await asyncio.sleep(30) #スレッド削除まで待機
+            await thread.send(f"このスレッドは5分後、自働的に削除されます。")
+            await asyncio.sleep(300) #スレッド削除まで待機
             await thread.delete() #スレッドを削除
         
         #トラブルがおこった際に表示
@@ -129,8 +129,8 @@ class BattleManager():
 
                 #対戦開始前のメッセージを作成
                 startmsg1 = f"対戦曲は[{music}] {dif}:{level_str}です!!"
-                startmsg2 = "10分以内に楽曲を終了し、スコアを入力してください。例:9950231\n(対戦を途中終了する場合はどちらかが「終了」と入力してください)"
-                            
+                startmsg2 = "10分以内に楽曲を終了し、スコアを入力してください。例:9950231\n(対戦を途中終了する場合はどちらかが「終了」と入力してください)\n"
+
                 await thread.send(startmsg1, file=discord.File(image)) #曲のジャケットを表示
                 await thread.send(startmsg2)
                 await asyncio.sleep(1)
@@ -152,27 +152,28 @@ class BattleManager():
                 #メッセージを受け取ったスレッドに対してのみ返す
                 while True:
                     BattleRisult1 = await self.client.wait_for('message', check=check, timeout=600)
-                    if thread.id == BattleRisult1.channel.id:
+                    if thread.id == BattleRisult1.channel.id and users_id[0] == BattleRisult1.author.id:
                         break
-                    else:
+                    else:  
                         pass
                 
                 await asyncio.sleep(0.5)
-                #引き直しが選択されたら選曲まで戻る
-                if BattleRisult1.content == "引き直し":
-                    continue
 
                 await thread.send(f"{users[1]}さんのスコアを入力してください。")
             
                 #メッセージを受け取ったスレッドに対してのみ返す
                 while True:
                     BattleRisult2 = await self.client.wait_for('message', check=check, timeout=120)
-                    if thread.id == BattleRisult2.channel.id:
+                    if thread.id == BattleRisult2.channel.id and users_id[1] == BattleRisult1.author.id:
                         break
                     else:
-                        pass 
+                        pass
                 
                 await asyncio.sleep(1)
+
+                #引き直しが選択されたら選曲まで戻る
+                if BattleRisult1.content == "引き直し" and BattleRisult2.content == "引き直し":
+                    continue
 
                 score1.append(BattleRisult1.content)
                 score2.append(BattleRisult2.content)
@@ -180,7 +181,7 @@ class BattleManager():
                 #どちらかが終了と入力したら終わる
                 if BattleRisult1.content == "終了" or BattleRisult2.content == "終了":
                     await thread.send(f"対戦が途中で終了されました。お疲れ様でした。")
-                    await asyncio.sleep(3)
+                    await asyncio.sleep(10)
                     await thread.delete()
                     return
                 
@@ -261,6 +262,6 @@ class BattleManager():
         loser_name = self.client.get_user(loser).display_name
         #結果を送信
         await thread.send(f"{users[0]}: {player1_score:,}\n{users[1]}: {player2_score:,}\nWinner <@{winner}> (+{abs(player1_score - player2_score):,})\n\n"\
-                          f"{winner_name}:Rate{winner_rate}(+{ratemove})\n"\
-                          f"{loser_name}:Rate{loser_rate}(-{ratemove})\n"
+                          f"{winner_name}　Rate:{winner_rate} (+{ratemove})\n"\
+                          f"{loser_name}　Rate:{loser_rate} (-{ratemove})\n"
                           )

@@ -12,3 +12,7 @@
 2023-12-20 21:10:42,060 [ERROR] TornamentCommand.py, lines 169. 'Rank'
 2023-12-20 21:23:49,682 [ERROR] TornamentCommand.py, lines 170. False
 2023-12-20 21:25:57,491 [ERROR] TornamentCommand.py, lines 170. False
+2024-02-16 21:01:43,722 [ERROR] Matching.py, lines 151. Can only compare identically-labeled Series objects
+2024-02-16 21:07:22,337 [ERROR] Matching.py, lines 151. Can only compare identically-labeled Series objects
+2024-02-16 21:19:08,372 [ERROR] Matching.py, lines 151. '[0] not found in axis'
+2024-02-16 21:40:33,862 [ERROR] Matching.py, lines 150. '[0] not found in axis'

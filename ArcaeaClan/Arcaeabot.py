@@ -6,7 +6,7 @@ from discord.ext import tasks
 import Arcaea_command
 
 #自分のBotのアクセストークン
-with open("Token_Key.json") as f:
+with open("ArcaeabotKey.json") as f:
     token = json.load(f)
 TOKEN = token["TokenKey"]
 

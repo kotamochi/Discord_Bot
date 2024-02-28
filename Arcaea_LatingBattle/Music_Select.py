@@ -36,7 +36,7 @@ async def Select_Assignment_Song(pt_1, pt_2):
     music_num = len(df_range_music)
 
     #乱数を作成
-    rand = random.randint(0,music_num-1)
+    rand = random.randint(0,music_num-2)
 
     #乱数から選ばれた楽曲を抽出
     hit_music = df_range_music.iloc[rand]

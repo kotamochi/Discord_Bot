@@ -73,7 +73,7 @@ async def join(ctx, pt:float):
     else:
         await ctx.response.send_message("ここでは登録できないよ\nCommandチャンネルで登録してね")
         
-        
+
 @tree.command(name="match", description="対戦を始めるよ(期間中,DMのみ)")     
 async def matching(ctx):
     '''マッチングを開始する'''
