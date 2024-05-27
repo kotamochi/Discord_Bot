@@ -3,13 +3,14 @@ import csv
 import json
 import asyncio
 import discord
-from discord import app_commands
+from discord import app_commands, ui
 import pandas as pd
 import Config
 import Matching
 import RatingBattle
 import TornamentCommand
-
+import random
+import ui
 #設定の読み込み
 Setting = Config.setting()
 
@@ -33,7 +34,8 @@ async def on_ready():
     global cmd
     cmd = TornamentCommand.Command(Setting, client)
     await tree.sync()
-    
+    #a = await tree.fetch_commands() 登録されてるコマンドを表示するやつ
+
 
 #コマンドに対応した処理
 @tree.command(name="eventstart", description="大会を始める(管理者のみ)")
@@ -121,11 +123,18 @@ async def self_match(ctx, player1:discord.User, player2:discord.User):
         await BotRoom.send(msg)
     else:
         await ctx.response.send_message("このコマンドは運営しか使えないよ")
-        
+
+
+@tree.command(name='test', description="テスト")
+async def test(ctx):
+    view = ui.SampleButton(timeout=None)
+    await ctx.response.send_message(view=view)
+
 
 @client.event
 async def on_message(message):
     '''Botへの指令を受け取る'''
+
     #bot自身のメッセージへの反応
     if message.author.id == Setting.BotID:
         #マッチが成立したことをbotに知らせるメッセージを受け取る

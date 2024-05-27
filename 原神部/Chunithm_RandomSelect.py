@@ -1,6 +1,7 @@
 import pandas as pd 
 import random
 import asyncio
+import requests
 
 #チームコースの曲を決める関数
 def Music_Select(const1=0, const2=15.4):
@@ -43,3 +44,19 @@ async def test(client, thread, session_dic):
     
     await client.wait_for('message', check=a, timeout=600)
     await thread.send("テスト2")
+
+
+async def worst_best(name, level):
+    TOKEN = "76e210508cb76a99f588449b6c04c4efbcf471f40e6adc37625c58e7fdb74780e171a64b53f4044f00b758c3e9aebc826fd0e86d983ef864af53aba3111278b0"
+
+    #とりあえず例として、どこかのWeb APIを叩くことにする
+    url = f"https://api.chunirec.net/2.0/records/showall.json?user_name={name}&region=jp2&token={TOKEN}"
+
+    #requests.getを使うと、レスポンス内容を取得できるのでとりあえず変数へ保存
+    response = requests.get(url)
+
+    #response.json()でJSONデータに変換して変数へ保存
+    jsonData = response.json()
+
+    #jsonからデータフレームに変換
+    df = pd.json_normalize(jsonData)
