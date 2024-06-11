@@ -6,6 +6,7 @@ import random
 import asyncio
 import discord
 import pandas as pd
+from datetime import datetime, timedelta
 import ui
 
 
@@ -90,7 +91,7 @@ async def Random_Select_Level(level1=None, level2=None):
 async def match_host(ctx, user, kind):
     """対戦のホストを立てる"""
     #メンバーリストを取得
-    MemberList = pd.read_csv(os.environ["MEMBER"])
+    MemberList = pd.read_csv(os.environ["MEMBERLIST"])
     #登録済みか確認
     if MemberList["Discord_ID"].isin([user]).any().any():
         pass
@@ -115,7 +116,7 @@ async def match_host(ctx, user, kind):
 
 async def state_check(user):
     """対戦ステータスを確認する"""
-    MemberList = pd.read_csv(os.environ["MEMBER"])
+    MemberList = pd.read_csv(os.environ["MEMBERLIST"])
     user_state = MemberList[MemberList["Discord_ID"] == user].copy()
     if user_state["State"].item():
         return True #対戦中
@@ -125,9 +126,9 @@ async def state_check(user):
 
 async def state_chenge(user:int, state:bool):
     """対戦ステータスの変更"""
-    MemberList = pd.read_csv(os.environ["MEMBER"])
+    MemberList = pd.read_csv(os.environ["MEMBERLIST"])
     MemberList.loc[MemberList[MemberList["Discord_ID"] == user].index, "State"] = state
-    MemberList.to_csv(os.environ["MEMBER"], index=False)
+    MemberList.to_csv(os.environ["MEMBERLIST"], index=False)
 
 
 async def Arcaea_ScoreBattle(ctx, host_id, guest_id, battle_type):
@@ -343,350 +344,252 @@ async def s_sb_selectlevel(ctx, host_user_id, guest_user_id, dif_ls, EX_flg):
     """レベル選択ボタンを表示"""
     view = ui.VSMusicLevelChoice(host_user_id, guest_user_id, dif_ls, EX_flg, timeout=600)
     await ctx.followup.send("レベルを選択してね!お互いがOKを押したら次に進むよ",view=view)
-    await asyncio.sleep(600)
-    #10分待って先に進んでいなかったら強制的に終了
-    if view.stop_flg:
-        try:
-            #チャンネルを削除
-            await ctx.channel.delete()
-            #対戦ステータスを変更
-            await state_chenge(host_user_id, False)
-            await state_chenge(guest_user_id, False)
-        except discord.errors.NotFound:
+
+
+async def s_sb_musicselect(ctx, host_user_id, guest_user_id, dif_ls, level_ls, EX_flg, Score_Count=None):
+    """楽曲表示と決定処理"""
+    music, level_str, dif, image = await Random_Select_Level(dif=dif_ls, level_list=level_ls)
+    #対戦開始前のメッセージを作成
+    musicmsg = f"対戦曲:[{music}] {dif}:{level_str}!!"
+    music = f"{music} {dif} {level_str}"
+    #選択のボタンを表示
+    view = ui.VSMusicButton(host_user_id, guest_user_id, dif_ls, level_ls, music, EX_flg, Score_Count, timeout=600)
+    #課題曲を表示
+    await ctx.channel.send(musicmsg, file=discord.File(image), view=view)
+    await ctx.channel.send("お互いが選択したらゲームスタート!!")
+    
+
+async def s_sb_battle(ctx, host_user_id, guest_user_id, dif_ls, level_ls, music, EX_flg, Score_Count=None):
+    """スコア受け取りから終了まで"""
+    try:
+        #初回の場合はインスタンス作成
+        if Score_Count != None:
             pass
-    else:
-        #処理を終わる
-        return
+        else:
+            Score_Count = ScoreManage()
 
-        N_music = 2 #対戦曲数を指定(基本的に2)
-        count = 0 #何曲目かをカウントする
+        #チャンネル属性を取得
+        channel = ctx.channel
+        #ユーザー属性を取得
+        host_user =  ctx.client.get_user(host_user_id)
+        guest_user =  ctx.client.get_user(guest_user_id)
 
-        while True:
-            #難易度を指定していない時
-            if select_difficult[0] == "ALL" or select_difficult[0] == "all":
-                music, level_str, dif, image = await Random_Select_Level()
+        #一人目
+        result1 = s_sb_score_check(ctx=ctx, channel=channel, score_user=host_user, wait_user=guest_user, EX_flg=EX_flg)
+        if result1 is None:
+            #タイムアウト処理が行われたので終了
+            return
 
-            #難易度上下限を指定してる時
-            elif len(select_difficult) == 2:
-                level_low = select_difficult[0]
-                level_high = select_difficult[1]
-                music, level_str, dif, image = await Random_Select_Level(level_low, level_high)
-
-            #難易度を指定している時
-            elif len(select_difficult) == 1:
-                level = select_difficult[0]
-                music, level_str, dif, image = await Random_Select_Level(level)
-
-            #対戦開始前のメッセージを作成
-            if EX_flg == False: 
-                musicmsg = f"対戦曲:[{music}] {dif}:{level_str}"
-            else:
-                musicmsg = f"対戦曲:[{music}] {dif}:{level_str}"
-            
-            #選択のボタンを表示
-            view = ui.VSMusicButton(host_user.id, guest_user.id, timeout=None)
-            #課題曲を表示
-            await thread.send(musicmsg, file=discord.File(image), view=view)
-            await thread.send("両者が選択すると始まります。")
-            #対戦が開始されるまで待機
-            while True:
-                if view.start or view.reroll: #対戦か引き直しのフラグで抜ける
-                    break
-                elif b_stop.vsstop: #対戦が終了されていたら関数を抜ける
-                    return 
-                else:
-                    await asyncio.sleep(1) #インターバル
-            
-            if view.reroll: #引き直しなら課題曲決めに戻る
-                del view #viweインスタンスを削除
-                continue
-            else:           #スコアを受け取って対戦を進める
-                pass
-
-            #スコア受け取り監視関数を定義
-            def check(m):
-                """通常スコア用チェック関数"""
-                try:
-                    ms = m.content.split(' ')
-                    if len(ms) == 1:
-                        for i in ms:
-                            int(i)
-                        return True
-                except Exception:
-                    return False
-
-            def checkEX(m):
-                """EXスコア用チェック関数"""
-                try:
-                    ms = m.content.split(' ')
-                    if len(ms) == 4:
-                        for i in ms:
-                            int(i)
-                        return True
-                except Exception:
-                    return False
-
-            #スコア入力待機
-            #一人目
-            if EX_flg == False: #通常スコア
-                #メッセージ送信
-                await thread.send(f"{host_user.mention}さんのスコアを入力してください。")
-                while True:
-                    BattleRisult1 = await ctx.client.wait_for('message', check=check, timeout=600)
-                    #メッセージを受け取ったスレッドであるか、メンションされたユーザーからであるかを確認
-                    if thread.id == BattleRisult1.channel.id and host_user.id == BattleRisult1.author.id:
-                        break
-                    else:
-                        pass
-
-            else:               #EXスコア
-                #メッセージ送信
-                await thread.send(f"{host_user.mention}さんのEXスコアを入力してください。\n 例:1430 1392 13 7 (pure数,内部pure数,far数,lost数)")
-                while True:
-                    BattleRisult1 = await ctx.client.wait_for('message', check=checkEX, timeout=600)
-                    #メッセージを受け取ったスレッドであるか、メンションされたユーザーからであるかを確認
-                    if thread.id == BattleRisult1.channel.id and host_user.id == BattleRisult1.author.id:
-                        break
-                    else:
-                        pass
-            
-            #二人目
-            if EX_flg == False: #通常スコア
-                #メッセージ送信
-                await thread.send(f"{guest_user.mention}さんのスコアを入力してください。")
-                while True:
-                    BattleRisult2 = await ctx.client.wait_for('message', check=check, timeout=600)
-                    #メッセージを受け取ったスレッドであるか、メンションされたユーザーからであるかを確認
-                    if thread.id == BattleRisult2.channel.id and guest_user.id == BattleRisult2.author.id:
-                        break
-                    else:
-                        pass
-
-            else:               #EXスコア
-                #メッセージ送信
-                await thread.send(f"{guest_user.mention}さんのスコアを入力してください。\n 例:1430 1392 13 7 (pure数,内部pure数,far数,lost数)")
-                while True:
-                    BattleRisult2 = await ctx.client.wait_for('message', check=checkEX, timeout=600)
-                    #メッセージを受け取ったスレッドであるか、メンションされたユーザーからであるかを確認
-                    if thread.id == BattleRisult2.channel.id and guest_user.id == BattleRisult2.author.id:
-                        break
-                    else:
-                        pass 
+        result2 = s_sb_score_check(ctx=ctx, channel=channel, score_user=guest_user, wait_user=host_user, EX_flg=EX_flg)
+        if result2 is None:
+            #タイムアウト処理が行われたので終了
+            return
                             
-            await asyncio.sleep(1) #インターバル
+        await asyncio.sleep(1) #インターバル
 
-            #スコアをlistに保存
-            score1.append(BattleRisult1.content)
-            score2.append(BattleRisult2.content)
+        #スコアをlistに保存
+        Score_Count.score1.append(result1.content)
+        Score_Count.score2.append(result2.content)
 
-            #対戦曲数を数える
-            count += 1
+        #対戦曲数を数える
+        Score_Count.count += 1
 
-            #選択曲をレコード用に取得
-            music_ls.append(f"{music} {dif} {level_str}")
+        #選択曲をレコード用に取得
+        Score_Count.music_ls.append(music)
 
-            #最終曲になったらループを抜ける
-            if count == N_music:
-                await thread.send(f"対戦が終了しました。結果を集計します。")
-                await asyncio.sleep(3)
-                break
-
-            await thread.send(f"{count}曲目お疲れ様でした！！ {count+1}曲目の選曲を行います。")
+        #最終曲になったらループを抜ける
+        if Score_Count.count == 2:
+            await channel.send(f"対戦終了～～！！ 対戦結果は～～？")
             await asyncio.sleep(3)
 
-        return thread, score1, score2, music_ls
+            #スコア計算、結果表示関数
+            await s_sb_result(ctx, channel, host_user, guest_user, Score_Count.score1, Score_Count.score2, Score_Count.music_ls, EX_flg)
+        else:
+            await channel.send(f"{Score_Count.count}曲目おつかれさま！！ {Score_Count.count+1}曲目はなにがでるかな～")
+            await asyncio.sleep(3)
+            #楽曲選択に移行
+            await s_sb_musicselect(ctx, host_user_id, guest_user_id, dif_ls, level_ls, EX_flg, Score_Count)
 
     #スレッド内でトラブルが起こったらスレッドを閉じる
-    except Exception:
+    except Exception as e:
+        print(e)
         await asyncio.sleep(1) #間を空ける
-        await thread.send("タイムアウト、もしくはコマンド不備により対戦が終了されました。スレッドを削除します。")
+        await channel.send("タイムアウトより対戦が終了されたよ。チャンネルを削除するね")
         await asyncio.sleep(3) #スレッド削除まで待機
-        await thread.delete()
+        await channel.delete()
         #対戦ステータスを変更
         await state_chenge(host_user.id, False)
         await state_chenge(guest_user.id, False)
 
 
-#ダブルススコアバトルを行う関数
-#async def Doubles_RandomScoreBattle(client, message):
-#    #渡されたコマンドを分割
-#    comannd = message.content.split(' ')
-#    users = [comannd[2], comannd[3], comannd[4], comannd[5]]
-#    users_id = [int(user[2:-1]) for user in users]
-#
-#    if len(comannd) == 6 and len(users) == len(set(users)):
-#        username_1 = client.get_user(users_id[0]).display_name
-#        username_2 = client.get_user(users_id[2]).display_name
-#        #対戦スレッドを作成
-#        thread = await message.channel.create_thread(name="{}チーム vs {}チーム：ScoreBattle".format(username_1, username_2),type=discord.ChannelType.public_thread)
-#
-#        #スレッド内でのエラーをキャッチ
-#        try:
-#            #難易度選択時のメッセージチェック関数
-#            def checkLv(m):
-#                try:
-#                    ms = m.content.split() #受け取ったメッセージをlistに
-#                    for n in ms:
-#                        if n[-1] == "+":
-#                            float(n[:-1]) #数値であるか検証
-#                        elif n == "all":
-#                            pass
-#                        else:
-#                            float(n) #数値であるか判定
-#                    return True
-#                except Exception:
-#                    return False
-#
-#            an = f"スレッド：{thread.mention} \n {username_1}チームと{username_2}チームのスコア対戦を開始します"
-#            ms = f"{users[0]}, {users[1]}チームと{users[2]}, {users[3]}チーム \n 120秒以内に難易度を選択して下さい(全曲の場合は「all」と入力してください)"
-#
-#            #メッセージを送信して難易度選択を待機
-#            await message.channel.send(an)
-#            await thread.send(ms)            
-#
-#            #メッセージを受け取ったスレッドに対してのみ返す
-#            while True:
-#                msg = await client.wait_for('message', check=checkLv, timeout=120)
-#
-#                if thread.id == msg.channel.id:
-#                    break
-#                else:
-#                    pass
-#
-#            #渡されたコマンドを分割
-#            select_difficult = msg.content.split(' ')
-#
-#            team1, team2, music_ls = [], [], []
-#
-#            N_music = 2 #対戦曲数を指定(基本的に2)
-#            count = 0 #何曲目かをカウントする
-#
-#            while True:
-#                #難易度を指定していない時
-#                if select_difficult[0] == "ALL" or select_difficult[0] == "all":
-#                    music, level_str, dif = Random_Select_Level()
-#
-#                #難易度の上下限を指定している時
-#                elif len(select_difficult) == 2:
-#                    level_low = select_difficult[0]
-#                    level_high = select_difficult[1]
-#                    music, level_str, dif = Random_Select_Level(level_low, level_high)
-#
-#                #難易度を指定している時
-#                elif len(select_difficult) == 1:
-#                    level = select_difficult[0]
-#                    music, level_str, dif = Random_Select_Level(level)
-#
-#                #対戦開始前のメッセージを作成
-#                startmsg = f"対戦曲は[{music}] {dif}:{level_str}です!!\n\n10分以内に楽曲を終了してスコアを入力してね。\n例:9950231\n(対戦を途中終了する時は、チームの１人目が「終了」と入力してください)"
-#                await asyncio.sleep(1)
-#                await thread.send(startmsg)
-#                await asyncio.sleep(0.5)
-#
-#                #スコア報告チェック関数
-#                def check(m):
-#                    try:
-#                        ms = m.content.split(' ')
-#                        if len(ms) == 1:
-#                            for i in ms:
-#                                int(i)
-#                            return True
-#                    except Exception:
-#                        if m.content == "終了" or m.content == "引き直し": #終了か引き直しと入力した場合のみok
-#                            return True
-#                        return False
-#
-#                #team1のスコアを集計
-#                await thread.send(f"{users[0]}チーム１人目のスコアを入力してね。\n楽曲を再選択する場合は「引き直し」と入力してください")
-#                #メッセージを受け取ったスレッドに対してのみ返す
-#                while True:
-#                    BattleRisult1 = await client.wait_for('message', check=check, timeout=600)
-#                    if thread.id == BattleRisult1.channel.id:
-#                        break
-#                    else:
-#                        pass
-#                        
-#                await asyncio.sleep(1)
-#                #引き直しが選択されたら選曲まで戻る
-#                if BattleRisult1.content == "引き直し":
-#                    continue
-#
-#                await thread.send(f"{users[0]}チーム２人目のスコアを入力してね。(5分以内)")
-#                #メッセージを受け取ったスレッドに対してのみ返す
-#                while True:
-#                    BattleRisult2 = await client.wait_for('message', check=check, timeout=300)
-#                    if thread.id == BattleRisult2.channel.id:
-#                        break
-#                    else:
-#                        pass
-#                        
-#                await asyncio.sleep(1)
-#
-#                #team1のスコアをリストに追加
-#                team1.append(BattleRisult1.content)
-#                team1.append(BattleRisult2.content)
-#
-#                #team2のスコアを集計
-#                await thread.send(f"{users[2]}チーム１人目のスコアを入力してね。(5分以内)")
-#                #メッセージを受け取ったスレッドに対してのみ返す
-#                while True:
-#                    BattleRisult3 = await client.wait_for('message', check=check, timeout=600)
-#                    if thread.id == BattleRisult3.channel.id:
-#                        break
-#                    else:
-#                        pass
-#                        
-#                await asyncio.sleep(1)
-#
-#                await thread.send(f"{users[2]}チーム２人目のスコアを入力してね。(5分以内)")
-#                #メッセージを受け取ったスレッドに対してのみ返す
-#                while True:
-#                    BattleRisult4 = await client.wait_for('message', check=check, timeout=600)
-#                    if thread.id == BattleRisult4.channel.id:
-#                        break
-#                    else:
-#                        pass
-#                        
-#                await asyncio.sleep(1)
-#
-#                #team2のスコアをリストに追加
-#                team2.append(BattleRisult3.content)
-#                team2.append(BattleRisult4.content)
-#
-#                #どちらかが終了と入力したら終わる
-#                if BattleRisult1.content == "終了" or BattleRisult3.content == "終了":
-#                    await thread.send(f"対戦が途中で終了されました。お疲れ様でした。")
-#                    await asyncio.sleep(3)
-#                    await thread.delete()
-#                    return 
-#
-#                #対戦曲数を数える
-#                count += 1
-#
-#                #選択曲をレコード用に取得
-#                music_ls.append(f"{music} {dif} {level_str}")
-#
-#                #最終曲になったらループを抜ける
-#                if count == N_music:
-#                    await thread.send(f"対戦が終了ました。結果を集計します。")
-#                    await asyncio.sleep(3)
-#                    break
-#
-#                await thread.send(f"{count}曲目お疲れ様でした！！ {count+1}曲目の選曲を行います。")
-#                await asyncio.sleep(3)
-#
-#            return thread, team1, team2, users, music_ls
-#
-#        #スレッド内でトラブルが起こったらスレッドを閉じる
-#        except Exception:
-#            await asyncio.sleep(1) #間を空ける
-#            await thread.send("タイムアウト、もしくはコマンド不備により対戦が終了されました。スレッドを削除します。")
-#            await asyncio.sleep(3) #スレッド削除まで待機
-#            await thread.delete()
-#
-#    else:
-#        #例外処理に持っていく
-#        raise Exception("")
+class ScoreManage():
+    """対戦のスコアを一時保存するためのクラス"""
+    def __init__(self):
+        self.score1 = []
+        self.score2 = []
+        self.music_ls = []
+        self.count = 0
+        
+        
+async def s_sb_score_check(ctx, channel, score_user, wait_user, EX_flg):
+    #スコア受け取り監視関数を定義
+    def check(m):
+        """通常スコア用チェック関数"""
+        try:
+            ms = m.content.split(' ')
+            if len(ms) == 1:
+                for i in ms:
+                    int(i)
+                return True
+        except Exception:
+            return False
+
+    def checkEX(m):
+        """EXスコア用チェック関数"""
+        try:
+            ms = m.content.split(' ')
+            if len(ms) == 4:
+                for i in ms:
+                    int(i)
+                return True
+        except Exception:
+            return False
+    
+    if EX_flg == False:
+        #通常スコア
+        result = await ctx.client.wait_for('message', check=check, timeout=600)
+    else:
+        #EXスコア
+        result = await ctx.client.wait_for('message', check=checkEX, timeout=600)
+        
+    #メッセージを受け取ったスレッドであるか、メンションされたユーザーからであるかを確認
+    if channel.id == result.channel.id and score_user.id == result.author.id:
+        #スコア確認ボタンを表示
+        view = ui.VSScoreCheck(score_user.id)
+        if EX_flg == False:
+            #通常スコア
+            await channel.send(f"入力スコア「{int(result.content):,}」でOKかな？", view=view)
+        else:
+            ex_result = result.content.split(" ")
+            await channel.send(f"入力スコア「Pure:{int(ex_result[0]):,}, 内部Pure:{int(ex_result[1]):,}, Far:{int(ex_result[2]):,}, Lost{int(ex_result[3]):,}」でOKかな？", view=view)
+        stasrt_time = datetime.now()
+        timeout = stasrt_time + timedelta(minutes=10)
+        while True:
+            #時刻を取得
+            nowtime = datetime.now()
+            #次に進む
+            if view.check_flg is not None:
+                break
+            #終了する
+            elif nowtime >= timeout:
+                try:
+                    #チャンネルを削除
+                    await ctx.channel.delete()
+                    #対戦ステータスを変更
+                    await state_chenge(score_user.id, False)
+                    await state_chenge(wait_user.id, False)
+                    return #終わる
+                except discord.errors.NotFound:
+                    return #終わる
+            else:
+                await asyncio.sleep(1)
+
+        if view.check_flg:
+            #二人目に進む
+            return result
+        else:
+            #やり直しを行う
+            s_sb_score_check(ctx, channel, score_user, wait_user)
+    else:
+        #他ユーザーからの反応は無視して再度入力を待つ
+        s_sb_score_check(ctx, channel, score_user, wait_user)
+
+
+async def s_sb_result(ctx, channel, host_user, guest_user, score1, score2, music_ls, b_type):
+        #対戦方式によってスコア計算を分岐
+        if b_type == 0: #通常スコア対決
+            #得点を計算
+            winner, loser, player1_score, player2_score = await Score_Battle(score1, score2, host_user, guest_user)
+        elif b_type == 1: #EXスコア対決
+            #得点を計算
+            winner, loser, player1_score, player2_score, Drow_Flg = await EX_Score_Battle(score1, score2, host_user, guest_user)
+
+        #名前を変数に
+        host_name = host_user.display_name
+        guest_name = guest_user.display_name
+
+        #勝敗をスレッドに表示
+        if b_type == False:
+            #通常スコアバトル
+            vs_format = "ScoreBattle"
+            if player1_score == player2_score:
+                await channel.send(f"結果は両者 {player1_score:,} で引き分け!! 白熱した戦いだったね!")
+                Drow_Flg = True
+                #表示用のリザルトを作成
+                result = f"[{vs_format}]\n"\
+                         f"・1曲目 {music_ls[0]}\n{host_name}：{int(score1[0]):,}\n{guest_name}：{int(score2[0]):,}\n"\
+                         f"・2曲目 {music_ls[1]}\n{host_name}：{int(score1[1]):,}\n{guest_name}：{int(score2[1]):,}\n"\
+                         f"・Total\n{host_name}：{player1_score:,}\n{guest_name}：{player2_score:,}\n\n"\
+                         f"Drow：{winner.display_name} {loser.display_name}!!"
+
+            else:
+                await channel.send(f"{host_name}: {player1_score:,}\n{guest_name}: {player2_score:,}\n\n勝者は{winner.mention}さん!!おめでとう!!🎉🎉")
+                Drow_Flg = False
+                #表示用のリザルトを作成
+                result = f"[{vs_format}]\n"\
+                         f"・1曲目 {music_ls[0]}\n{host_name}：{int(score1[0]):,}\n{guest_name}：{int(score2[0]):,}\n"\
+                         f"・2曲目 {music_ls[1]}\n{host_name}：{int(score1[1]):,}\n{guest_name}：{int(score2[1]):,}\n"\
+                         f"・Total\n{host_name}：{player1_score:,}\n{guest_name}：{player2_score:,}\n\n"\
+                         f"Winner：{winner.display_name}!!"
+                
+        elif b_type == 1: #EXスコア対決
+            #EXスコアバトル
+            vs_format = "EXScoreBattle"
+            if sum(player1_score) == sum(player2_score):
+                await channel.send(f"結果は両者 {sum(player1_score):,} で引き分け!! 白熱した戦いだったね!")
+                Drow_Flg = True
+                #表示用のリザルトを作成
+                result = f"[{vs_format}]\n"\
+                         f"・1曲目 {music_ls[0]}\n{host_name}：{int(player1_score[0]):,}\n{guest_name}：{int(player2_score[0]):,}\n"\
+                         f"・2曲目 {music_ls[1]}\n{host_name}：{int(player1_score[1]):,}\n{guest_name}：{int(player2_score[1]):,}\n"\
+                         f"・Total\n{host_name}：{sum(player1_score):,}\n{guest_name}：{sum(player2_score):,}\n\n"\
+                         f"{winner.display_name}さんvs{loser.display_name}さんは引き分けでした!!!"
+
+            else:
+                await channel.send(f"{host_name}: {sum(player1_score):,}\n{guest_name}: {sum(player2_score):,}\n\n勝者は{winner.mention}さん!!おめでとう!!🎉🎉")
+                Drow_Flg = False
+                #表示用のリザルトを作成
+                result = f"[{vs_format}]\n"\
+                         f"・1曲目 {music_ls[0]}\n{host_name}：{int(player1_score[0]):,}\n{guest_name}：{int(player2_score[0]):,}\n"\
+                         f"・2曲目 {music_ls[1]}\n{host_name}：{int(player1_score[1]):,}\n{guest_name}：{int(player2_score[1]):,}\n"\
+                         f"・Total\n{host_name}：{sum(player1_score):,}\n{guest_name}：{sum(player2_score):,}\n\n"\
+                         f"勝者は{winner.display_name}さんでした!!!"
+
+
+        #csvファイルに保存
+        if b_type == False: #通常スコア
+            log_path = os.environ["SCORE_LOG"]
+        else:           #EXスコア
+            log_path = os.environ["EXSCORE_LOG"]
+        df_log = pd.read_csv(log_path)
+        now_data = [[winner.id, loser.id, Drow_Flg]]
+        df_now = pd.DataFrame(now_data, columns=["Winner", "Loser", "Drow_Flg"])
+        df_log = pd.concat([df_log, df_now])
+        df_log.to_csv(log_path, index=False)
+
+        #対戦結果をチャンネルに表示
+        result_ch = await ctx.client.fetch_channel(int(os.environ["B_RESULT_CH"]))
+        await result_ch.send(result)
+
+        #対戦ステータスを変更
+        await state_chenge(host_user.id, False)
+        await state_chenge(guest_user.id, False)
+
+        #30秒後スレッドを閉じる
+        await asyncio.sleep(1) #間を空ける
+        await channel.send(f"このチャンネルは1分後に自動で削除されるよ\nおつかれさま～～!またね!!")
+        await asyncio.sleep(60) #スレッド削除まで待機
+        await channel.delete() #スレッドを削除
 
 
 #スコア対決の計算
@@ -716,6 +619,9 @@ async def EX_Score_Battle(user1, user2, name1, name2):
     user2_score = 0
     total_P_pure1 = 0
     total_P_pure2 = 0
+    user1_score_ls = []
+    user2_score_ls = []
+
     for score1, score2 in zip(user1, user2):
         #EXスコアを計算(無印Pure:3点,Pure:2点,Far:1点,Lost:0点)
         #1Pプレイヤーのスコアを計算
@@ -723,29 +629,31 @@ async def EX_Score_Battle(user1, user2, name1, name2):
         F_pure1 = int(pure1) - int(P_pure1)
         user1_score += int(P_pure1)*3 + int(F_pure1)*2 + int(far1)*1
         total_P_pure1 += int(P_pure1)
+        user1_score_ls.append(int(P_pure1)*3 + int(F_pure1)*2 + int(far1)*1)
 
-    #2Pプレイヤーのスコアを計算
-    pure2, P_pure2, far2, lost2 = score2.split(' ')
-    F_pure2 = int(pure2) - int(P_pure2)
-    user2_score += int(P_pure2)*3 + int(F_pure2)*2 + int(far2)*1
-    total_P_pure2 += int(P_pure1)
+        #2Pプレイヤーのスコアを計算
+        pure2, P_pure2, far2, lost2 = score2.split(' ')
+        F_pure2 = int(pure2) - int(P_pure2)
+        user2_score += int(P_pure2)*3 + int(F_pure2)*2 + int(far2)*1
+        total_P_pure2 += int(P_pure1)
+        user2_score_ls.append(int(P_pure2)*3 + int(F_pure2)*2 + int(far2)*1)
 
     if user1_score > user2_score:   #user1の勝利
         Drow_Flg = False
-        return name1, name2, user1_score, user2_score, Drow_Flg
+        return name1, name2, user1_score_ls, user2_score_ls, Drow_Flg
     elif user1_score < user2_score: #user2の勝利
         Drow_Flg = False
-        return name2, name1, user1_score, user2_score, Drow_Flg
+        return name2, name1, user1_score_ls, user2_score_ls, Drow_Flg
     else:                           #EXスコアが引き分けのときは内部精度勝負
         if total_P_pure1 > total_P_pure2:   #user1の勝利
             Drow_Flg = False
-            return name1, name2, user1_score, user2_score, Drow_Flg
+            return name1, name2, user1_score_ls, user2_score_ls, Drow_Flg
         elif total_P_pure1 < total_P_pure2: #user2の勝利
             Drow_Flg = False
-            return name2, name1, user1_score, user2_score, Drow_Flg
+            return name2, name1, user1_score_ls, user2_score_ls, Drow_Flg
         else:                               #それでも結果がつかなかった場合引き分け
             Drow_Flg = True
-            return name1, name2, user1_score, user2_score, Drow_Flg
+            return name1, name2, user1_score_ls, user2_score_ls, Drow_Flg
 
 
 #戦績を確認
@@ -816,6 +724,7 @@ async def User_Status(ctx, user, file_path):
     return result.sort_values(by=["Win", "Drow", "Lose"])
 
 
+#作りかけの機能
 #async def task_create():
 #    """今週の課題曲を指定"""
 #    music, level_str, dif = Random_Select_Level("9")
@@ -824,90 +733,3 @@ async def User_Status(ctx, user, file_path):
 #    #メッセージを作成
 #    embed = discord.Embed(title="今週の課題曲",description=msg)
 #    embed.add_field(name="今週の課題曲", value=msg, inline=False)
-
-
-
-#現在使用していない機能
-#ポテンシャル値の計算
-def Potential_Score(music, score, difficult="FTR"):
-
-    #楽曲情報をデータフレームに読み込む
-    df_music = pd.read_csv("Arcaea_Music_Data.csv")
-
-    #ptを算出したい曲のデータを取得
-    pt_music = df_music[df_music["Music_Title"] == music]
-
-    #登録されている略称(ニックネーム)でも可
-    if pt_music["Music_Title"].empty == True:
-        pt_music = df_music[df_music["Nickname"] == music]
-
-    #曲の譜面定数情報を取得
-    if difficult == "BYD" or difficult == "byd": #BYDの定数を取得
-        pt_music_b = pt_music.dropna(subset=["BYD_Const"])
-        const = float(pt_music_b["BYD_Const"].values)
-        difficult = "BYD"                        #返信用に形式を統一
-
-    else:                                        #FTRの定数を取得
-        pt_music_f = pt_music.dropna(subset=["FTR_Const"])
-        const = float(pt_music_f["FTR_Const"].values)
-
-    #スコアの桁数を合わせる(994と入力したものを9,940,000に直す)
-    while True:
-        score_digit = len(str(score)) #現在の桁数を取得
-        if score_digit == 7 or score_digit == 8:
-            break
-        score = score * 10
-
-    #スコア区分を変数として作成
-    PM = 10000000
-    EX = 9800000
-    AA = 9500000
-
-    #楽曲のポテンシャル値を計算
-    if score >= PM:
-        potential = const + 2                       #譜面定数+2.0
-
-    elif score >= EX:
-        potential = const + 1 + (score - EX)/200000 #譜面定数+1.0+(スコア-9,800,000)/200,000
-
-    else:
-        potential = const + (score - AA)/300000     #譜面定数+(スコア-9,500,000)/300,000 (下限は0)
-    
-        #※ポテンシャル値は0以下にならない
-        if potential <= 0:
-            potential = 0
-
-    return round(potential, 2), score, difficult #少数第３位を四捨五入して表示
-
-#定数ランダム選曲
-def Random_Select_Const(const1="0", const2="12.0"):
-
-    #定数を決めていない時は全曲から選ぶ
-    const1 = float(const1)
-    const2 = float(const2)
-
-    #楽曲情報をデータフレームに読み込む
-    df_music = pd.read_csv("Arcaea_Music_Data.csv")
-
-    #楽曲数を取得
-    df_music = df_music[df_music["FTR_Const"] >= const1]
-    df_music = df_music[df_music["FTR_Const"] <= const2]
-
-    #乱数の範囲を取得
-    music_num = len(df_music)
-
-    rand = random.randint(0,music_num-1)
-
-    #乱数から選ばれた楽曲を抽出
-    hit_music = df_music.iloc[rand]
-
-    #結果を保存
-    music = hit_music["Music_Title"]
-    level = hit_music["FTR_Level"]
-
-    if level % 1 != 0.0:
-        level_str = str(math.floor(level)) + "+"
-    else:
-        level_str = str(math.floor(level))
-
-    return music, level_str

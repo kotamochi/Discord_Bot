@@ -21,6 +21,7 @@ class VSButton(ui.View):
         await Arcaea_command.match_host(button, button.user.id, "1")
 
     async def on_timeout(self):
+        """タイムアウト処理"""
         #タイムアウトになったらボタンを削除
         await self.message.delete()
 
@@ -59,6 +60,7 @@ class VSHostButton(ui.View):
             await button.response.send_message("あなたはこの募集のホストではありません。", ephemeral=True)
             
     async def on_timeout(self):
+        """タイムアウト処理"""
         if self.timeout_flg:
             #タイムアウトになったらボタンを削除
             await self.message.edit("タイムアウトにより、募集は取り消されました。")
@@ -191,8 +193,10 @@ class VSMusicDifChoice(ui.View):
                     self.click.append(button.user.id)
                     #二人ともがボタンを押したら処理を行う
                     if len(self.click) == 2:
-                        #ボタンを決定チャットで上書き
-                        await button.response.edit_message("難易度が決定されたよ！")
+                        #タイムアウト処理を無効化
+                        self.timeout_flg = False
+                        #ボタンを決定メッセージで上書き
+                        await button.response.edit_message(content="難易度が決定されたよ！", view=None)
                         await button.followup.send(f"{button.user.display_name}がOKを選択したよ！ 難易度決定！")
                         #決定した難易度をListに
                         ls = []
@@ -204,7 +208,6 @@ class VSMusicDifChoice(ui.View):
                             ls.append("BYD")
 
                         #レベル選択へ
-                        self.timeout_flg = False
                         await Arcaea_command.s_sb_selectlevel(button, self.player[0], self.player[1], ls, self.EX_flg)
                     else:
                         await button.response.send_message(f"{button.user.display_name}がOKを選択したよ！")
@@ -238,6 +241,7 @@ class VSMusicDifChoice(ui.View):
         await button.followup.send(msg)
 
     async def on_timeout(self):
+        """タイムアウト処理"""
         if self.timeout_flg:
             #タイムアウトになったらチャンネルを削除
             await self.message.channel.delete()
@@ -248,11 +252,11 @@ class VSMusicDifChoice(ui.View):
 
 class VSMusicLevelChoice(ui.View):
     """課題曲レベル選択ボタン"""
-    def __init__(self, user1, user2, dif, EX_flg, timeout=180):
+    def __init__(self, user1, user2, dif, EX_flg, timeout=None):
         self.player = [user1, user2]
         self.click = []
         self.EX_flg = EX_flg
-        self.stop_flg = True
+        self.timeout_flg = True
         #各レベルの選択フラグ
         self.level_dic = {"7":False,
                           "7+":False,
@@ -271,17 +275,17 @@ class VSMusicLevelChoice(ui.View):
         super().__init__(timeout=timeout)
 
     @discord.ui.select(cls=discord.ui.Select, placeholder="課題曲のレベルを指定してね",options=[discord.SelectOption(label="ALL"), 
-                                                                                                  discord.SelectOption(label="7"),
-                                                                                                  discord.SelectOption(label="7+"),
-                                                                                                  discord.SelectOption(label="8"),
-                                                                                                  discord.SelectOption(label="8+"),
-                                                                                                  discord.SelectOption(label="9"),
-                                                                                                  discord.SelectOption(label="9+"),
-                                                                                                  discord.SelectOption(label="10"),
-                                                                                                  discord.SelectOption(label="10+"),
-                                                                                                  discord.SelectOption(label="11"),
-                                                                                                  discord.SelectOption(label="12")]
-                                                                                                  )
+                                                                                              discord.SelectOption(label="7"),
+                                                                                              discord.SelectOption(label="7+"),
+                                                                                              discord.SelectOption(label="8"),
+                                                                                              discord.SelectOption(label="8+"),
+                                                                                              discord.SelectOption(label="9"),
+                                                                                              discord.SelectOption(label="9+"),
+                                                                                              discord.SelectOption(label="10"),
+                                                                                              discord.SelectOption(label="10+"),
+                                                                                              discord.SelectOption(label="11"),
+                                                                                              discord.SelectOption(label="12")]
+                       )
     async def select(self, interaction: discord.Interaction, select: discord.ui.Select):
         level = select.values[0]
         #全レベル指定の場合
@@ -347,9 +351,9 @@ class VSMusicLevelChoice(ui.View):
                     self.click.append(button.user.id)
                     #二人ともがボタンを押したら処理を行う
                     if len(self.click) == 2:
-                        #ボタンを無効化
-                        self.children[0].disabled, self.children[1].disabled = True, True
-                        await button.response.edit_message(view=self)
+                        self.timeout_flg = False #タイムアウト処理を無効化
+                        #ボタンを決定メッセージで上書き
+                        await button.response.edit_message(content="Levelが決定したよ！",view=None)
                         await button.followup.send(f"{button.user.display_name}がOKを選択したよ！ 課題曲を発表します！！")
                         #+を.7形式に変換
                         temp_ls = []
@@ -361,8 +365,6 @@ class VSMusicLevelChoice(ui.View):
                                 lv_f = float(lv)
                                 temp_ls.append(lv_f)
 
-                        #終了フラグを消す
-                        self.stop_flg = False
                         #曲選択へ
                         await Arcaea_command.s_sb_musicselect(button, self.player[0], self.player[1], self.dif, temp_ls, self.EX_flg)
                     else:
@@ -377,16 +379,28 @@ class VSMusicLevelChoice(ui.View):
         else:
             return False #それ以外
 
+    async def on_timeout(self):
+        """タイムアウト処理"""
+        if self.timeout_flg:
+            #タイムアウトになったらチャンネルを削除
+            await self.message.channel.delete()
+            #対戦ステータスを変更
+            await Arcaea_command.state_chenge(self.player[0], False)
+            await Arcaea_command.state_chenge(self.player[1], False)
 
 
 class VSMusicButton(ui.View):
     """課題曲選択ボタン"""
-    def __init__(self, user1, user2, timeout=180):
+    def __init__(self, user1, user2, dif_ls, level_ls, music, EX_flg, Score_Count=None, timeout=None):
         self.player = [user1, user2]
         self.ok_click = []
         self.reroll_click = []
-        self.start = False #対戦を初めていいか
-        self.reroll = False
+        self.dif_ls = dif_ls
+        self.level_ls = level_ls
+        self.music = music
+        self.EX_flg = EX_flg
+        self.Score_Count = Score_Count
+        self.timeout_flg = True
         super().__init__(timeout=timeout)
 
     @ui.button(label="OK!!", style=discord.ButtonStyle.success)
@@ -397,22 +411,24 @@ class VSMusicButton(ui.View):
         if flg:
             #同じプレイヤーが再び押していないか
             if button.user.id in self.ok_click:
-                await button.response.send_message("すでに押しています。", ephemeral=True)
+                await button.response.send_message("もう押してるよ！", ephemeral=True)
             else:
                 #ボタンをクリックした人を追加
                 self.ok_click.append(button.user.id)
                 #二人ともがボタンを押したら対戦を行う
                 if len(self.ok_click) == 2:
-                    #ボタンを無効化
-                    self.children[0].disabled, self.children[1].disabled = True, True
-                    await button.response.edit_message(view=self)
+                    #タイムアウト処理を無効化
+                    self.timeout_flg = False
+                    #ボタンを決定メッセージで上書き
+                    await button.response.edit_message(content="対戦が開始されます", view=None)
                     #対戦開始をアナウンス
-                    await button.followup.send(f"{button.user.display_name}が決定を選択しました。\n対戦を開始してください。")
-                    self.start = True #対戦フラグを立てる
+                    await button.followup.send(f"{button.user.display_name}さんがOKを押したよ！\n対戦スタート！！")
+                    #対戦へ
+                    await Arcaea_command.s_sb_battle(button, self.player[0], self.player[1], self.dif_ls, self.level_ls, self.music, self.EX_flg, self.Score_Count)
                 else:
-                    await button.response.send_message(f"{button.user.display_name}が決定を選択しました。")
+                    await button.response.send_message(f"{button.user.display_name}さんがOKを押したよ！")
         else:
-            await button.response.send_message("あなたは対戦者ではありません。", ephemeral=True)
+            await button.response.send_message("きみは対戦者じゃないよ", ephemeral=True)
 
     @ui.button(label="引き直し", style=discord.ButtonStyle.blurple)
     async def exscore(self, button: discord.ui.Button, interaction: discord.Interaction):
@@ -422,22 +438,23 @@ class VSMusicButton(ui.View):
         if flg:
             #同じプレイヤーが再び押していないか
             if button.user.id in self.reroll_click:
-                await button.response.send_message("すでに押しています。", ephemeral=True)
+                await button.response.send_message("もう押してるよ！", ephemeral=True)
             else:
                 #ボタンをクリックした人を追加
                 self.reroll_click.append(button.user.id)
                 #二人ともがボタンを押したら引き直しを行う
                 if len(self.reroll_click) == 2:
-                    #ボタンを無効化
-                    self.children[0].disabled, self.children[1].disabled = True, True
-                    await button.response.edit_message(view=self)
-                    await button.followup.send(f"{button.user.display_name}が引き直しを選択しました。\n課題曲を再抽選します。")
-                    self.reroll = True #引き直しフラグを立てる
+                    #タイムアウト処理を無効化
+                    self.timeout_flg = False
+                    #ボタンを決定メッセージで上書き
+                    await button.response.edit_message(content="課題曲の再抽選を実施します", view=None)
+                    await button.followup.send(f"{button.user.display_name}さんが引き直しを押したよ\nなにがでるかな～～")
+                    #再度抽選を行う
+                    await Arcaea_command.s_sb_musicselect(button, self.player[0], self.player[1], self.dif_ls, self.level_ls, self.EX_flg, self.Score_Count)
                 else:
-                    await button.response.send_message(f"{button.user.display_name}が引き直しを選択しました。")
+                    await button.response.send_message(f"{button.user.display_name}さんが引き直しを押したよ")
         else:
-            await button.response.send_message("あなたは対戦者ではありません。", ephemeral=True)
-
+            await button.response.send_message("きみは対戦者じゃないよ", ephemeral=True)
 
     async def check(self, user):
         """対戦者以外ではないか確認"""
@@ -445,3 +462,36 @@ class VSMusicButton(ui.View):
             return True #対戦者
         else:
             return False #それ以外
+        
+    async def on_timeout(self):
+        """タイムアウト処理"""
+        if self.timeout_flg:
+            #タイムアウトになったらチャンネルを削除
+            await self.message.channel.delete()
+            #対戦ステータスを変更
+            await Arcaea_command.state_chenge(self.player[0], False)
+            await Arcaea_command.state_chenge(self.player[1], False)
+            
+            
+class VSScoreCheck(ui.View):
+    """スコア確認ボタン"""
+    def __init__(self, user, timeout=None):
+        self.user_id = user
+        self.check_flg = None
+        super().__init__(timeout=timeout)
+
+    @ui.button(label="OK!", style=discord.ButtonStyle.success)
+    async def scoreok(self, button: discord.ui.Button, interaction: discord.Interaction):
+        if button.user.id == self.user_id:
+            self.check_flg = True
+            await button.response.send_message("入力を確定したよ!!")
+        else:
+            await button.response.send_message("スコア入力者じゃないよ", ephemeral=True)
+
+    @ui.button(label="入力しなおす", style=discord.ButtonStyle.gray)
+    async def reinput(self, button: discord.ui.Button, interaction: discord.Interaction):
+        if button.user.id == self.user_id:
+            self.check_flg = False
+            await button.response.send_message("スコアを入力し直してね")
+        else:
+            await button.response.send_message("スコア入力者じゃないよ", ephemeral=True)

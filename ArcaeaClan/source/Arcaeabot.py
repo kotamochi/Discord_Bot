@@ -22,9 +22,11 @@ tree = app_commands.CommandTree(client)
 async def on_ready():
     """初回起動設定"""
     #各種IDを取得
-    global Creater_DM, Creater_ID, MemberRole_ID, RandomSelect_CH, RandomBattle_CH, Create_RoomID
+    global Creater_DM, Creater_ID, Server_ID, MemberRole_ID, SubRole_ID, RandomSelect_CH, RandomBattle_CH, Create_RoomID
     Creater_ID = int(os.environ["CREATER_ID"])
+    Server_ID = int(os.environ["SERVER_ID"])
     MemberRole_ID = int(os.environ["MEMBERROLE_ID"])
+    SubRole_ID = int(os.environ["SUBROLE_ID"])
     RandomSelect_CH = int(os.environ["MUSIC_CH"])
     RandomBattle_CH = int(os.environ["BATTLE_CH"])
     Create_RoomID = int(os.environ["CREATER_ROOM_ID"])
@@ -34,7 +36,7 @@ async def on_ready():
 
     #コマンドの更新
     await tree.sync()
-    #viwe = await tree.fetch_commands() #登録されてるコマンドを表示するやつ
+    #viwe = await tree.fetch_commands() #登録されてるコマンドを表示するやつ(確認用)
     #print(viwe)
 
     #ログイン通知
@@ -51,9 +53,33 @@ async def chack_online():
     oncheaktime =now.strftime('%H:%M')
     musictasktime = now.strftime('%A %H:%M')
 
-    #定刻に管理者DMに起動チェックを送信
+    #定刻に管理者DMに起動チェックを送信とメンバーリスト更新
     if oncheaktime == '09:00':
-        await Creater_DM.send("起動してるよ")
+        #メンバーリストの更新
+        guild_info = client.get_guild(Server_ID) #サーバー情報を取得
+        members_info = guild_info.get_role(MemberRole_ID).members
+        sub_info = guild_info.get_role(SubRole_ID).members
+        sub_ids = [i.id for i in sub_info]
+        
+        #一人ずつデータを作成
+        member_list = []
+        for member in members_info:
+            if member.id in sub_ids:
+                #サブ垢は飛ばす
+                pass
+            else:
+                #データ作成
+                user_data = [member.display_name, member.id, False]
+                #データをリストに追加
+                member_list.append(user_data)
+                
+        #MemberListをDataFrameにして保存
+        df_members = pd.DataFrame([member_list], columns={"User_Name", "Discord_ID", "State"}) #新規ユーザーデータを作成
+        df_members = df_members.astype({"Discord_ID":"int64"}) #データの型変換
+        df_members.to_csv(os.environ["MEMBERLIST"], index=False) #保存
+        
+        #起動通知
+        await Creater_DM.send("起動中...メンバーリスト更新完了。")
 
 
 @client.event
@@ -63,7 +89,7 @@ async def on_member_join(member):
     role = member.guild.get_role(MemberRole_ID)
     #入ってきたMemberに役職を付与
     await member.add_roles(role)
-
+    await client.guilds.get_role(MemberRole_ID)
 
 #コマンド
 @tree.command(name="rand", description="ランダム選曲(例:例:dif=FTR,level=9+,level2=11 ➡ FTR 9+~11))\n(ランダム選曲CHのみ)")
@@ -94,7 +120,7 @@ async def sign_up(ctx):
         #対戦CHのみで有効
         if ctx.channel_id == RandomBattle_CH or ctx.channel_id == Create_RoomID:
             #メンバーリストを取得
-            MemberList = pd.read_csv(os.environ["MEMBER"])
+            MemberList = pd.read_csv(os.environ["MEMBERLIST"])
             #登録済みか確認
             if MemberList["Discord_ID"].isin([ctx.user.id]).any().any():
                 #登録済みなら通知して処理を終わる
@@ -104,7 +130,7 @@ async def sign_up(ctx):
             signup_user = pd.DataFrame([[ctx.user.display_name, ctx.user.id, False]], columns=MemberList.columns) #新規ユーザーデータを作成
             MemberList = pd.concat([MemberList, signup_user]) #既存データと結合
             MemberList = MemberList.astype({"Discord_ID":"int64"}) #データの型変換
-            MemberList.to_csv(os.environ["MEMBER"], index=False) #保存
+            MemberList.to_csv(os.environ["MEMBERLIST"], index=False) #保存
 
             #登録完了を知らせる
             return await ctx.response.send_message("登録完了です!")
@@ -191,7 +217,7 @@ async def log_view(ctx):
         return await ctx.response.send_message("コマンド処理中にエラーが発生したよ。もう一度試してみて!", ephemeral=True)
 
 
-@tree.command(name="master_log", description="対戦記録ファイルを出力。(作者のみ)", )
+@tree.command(name="master_log", description="対戦記録ファイルを出力。(管理者のみ)", )
 async def master_log_view(ctx):
     """管理者用コマンド 戦績ファイルの取得"""
     try:
@@ -207,14 +233,7 @@ async def master_log_view(ctx):
     #エラー処理
     except Exception:
         return await ctx.response.send_message("データを正しく出力できませんでした。", ephemeral=True)
-
-
-#デバック用コマンド
-#@tree.command(name="c_state", description="ステ変更(デバック)", )
-#async def state(ctx):
-#    await Arcaea_command.state_chenge(ctx.user.id, False)
-#    return await ctx.response.send_message("変更しました。")
-
+    
 
 async def noaction_messeage(ctx):
     """使用できない場所でコマンドを使用したときに送信"""
