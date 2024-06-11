@@ -6,12 +6,13 @@ import asyncio
 
 class VSButton(ui.View):
     """対戦システムの選択ボタン"""
-    def __init__(self, timeout=180):
+    def __init__(self, timeout=None):
+        #初期設定
         super().__init__(timeout=timeout)
     
     @ui.button(label="スコアバトル(1vs1)", style=discord.ButtonStyle.success)
     async def score(self, button: discord.ui.Button, interaction: discord.Interaction):
-        """1vs1"""
+        """1vs1(Score)"""
         await Arcaea_command.match_host(button, button.user.id, "0")
 
     @ui.button(label="EXスコアバトル(1vs1)", style=discord.ButtonStyle.blurple)
@@ -19,10 +20,9 @@ class VSButton(ui.View):
         """1vs1(EXScore)"""
         await Arcaea_command.match_host(button, button.user.id, "1")
 
-    #@ui.button(label="ScoreBattle 2vs2", style=discord.ButtonStyle.blurple)
-    #async def score2(self, button: discord.ui.Button, interaction: discord.Interaction):
-    #    """2vs2"""
-    #    await Arcaea_command.match_host(button, button.user.id, "2")
+    async def on_timeout(self):
+        #タイムアウトになったらボタンを削除
+        await self.message.delete()
 
 
 class VSHostButton(ui.View):
@@ -30,23 +30,40 @@ class VSHostButton(ui.View):
     def __init__(self, user, kind, timeout=180):
         self.host = user
         self.kind = kind
+        self.timeout_flg = True
         super().__init__(timeout=timeout)
 
     @ui.button(label="参加する", style=discord.ButtonStyle.success)
     async def vsstart(self, button: discord.ui.Button, interaction: discord.Interaction):
         guest = button.user.id
-        await Arcaea_command.Arcaea_ScoreBattle(button, self.host, guest, self.kind)
+        #参加者のステータス確認
+        if await Arcaea_command.state_check(guest):
+            return await button.response.send_message(f"あなたは対戦中、もしくは対戦ホスト中です。", ephemeral=True)
+        else:
+            self.timeout_flg = False
+            #募集ボタンを削除
+            await button.message.delete()
+            #対戦処理を開始
+            await Arcaea_command.Arcaea_ScoreBattle(button, self.host, guest, self.kind)
 
     @ui.button(label="取り消し(ホストのみ可)", style=discord.ButtonStyle.gray)
     async def cancel(self, button: discord.ui.Button, interaction: discord.Interaction):
         if self.host == button.user.id:
+            self.timeout_flg = False
             #募集を取り消し
             await button.message.delete()
-            #対戦フラグを消す
+            #ホストのステータスを変更
             await Arcaea_command.state_chenge(button.user.id, False)
             await button.response.send_message("募集を取り消しました。", ephemeral=True)
         else:
             await button.response.send_message("あなたはこの募集のホストではありません。", ephemeral=True)
+            
+    async def on_timeout(self):
+        if self.timeout_flg:
+            #タイムアウトになったらボタンを削除
+            await self.message.edit("タイムアウトにより、募集は取り消されました。")
+            #ホストのステータスを変更
+            await Arcaea_command.state_chenge(self.host, False)
 
 
 class VSStopbutton(ui.View):
@@ -91,6 +108,275 @@ class VSStopbutton(ui.View):
             return True #対戦者
         else:
             return False #それ以外
+
+
+class VSMusicDifChoice(ui.View):
+    """課題曲難易度選択ボタン"""
+    def __init__(self, user1, user2, EX_flg, timeout=None):
+        self.player = [user1, user2]
+        self.click = []
+        self.EX_flg = EX_flg
+        self.FTR = False #各難易度の選択フラグ
+        self.ETR = False
+        self.BYD = False
+        self.timeout_flg = True
+        super().__init__(timeout=timeout)
+
+    @ui.button(label="FTR", style=discord.ButtonStyle.gray)
+    async def ftr(self, button: discord.ui.Button, interaction: discord.Interaction):
+        #対戦者かチェック
+        if await self.check(button.user.id):
+
+            if self.FTR == False:
+                self.FTR = True
+                self.children[0].style = discord.ButtonStyle.success
+            else:
+                self.FTR = False
+                self.children[0].style = discord.ButtonStyle.gray
+
+            #結果を表示
+            await button.response.edit_message(view=self)
+            await self.check_show_dif(button)
+        else:
+            await button.response.send_message("きみは対戦者じゃないよ", ephemeral=True)
+
+    @ui.button(label="ETR", style=discord.ButtonStyle.gray)
+    async def etr(self, button: discord.ui.Button, interaction: discord.Interaction):
+        #対戦者かチェック
+        if await self.check(button.user.id):
+
+            if self.ETR == False:
+                self.ETR = True
+                self.children[1].style = discord.ButtonStyle.success
+            else:
+                self.ETR = False
+                self.children[1].style = discord.ButtonStyle.gray
+                
+            #結果を表示
+            await button.response.edit_message(view=self)
+            await self.check_show_dif(button)
+        else:
+            await button.response.send_message("きみは対戦者じゃないよ", ephemeral=True)
+
+    @ui.button(label="BYD", style=discord.ButtonStyle.gray)
+    async def byd(self, button: discord.ui.Button, interaction: discord.Interaction):
+        #対戦者かチェック
+        if await self.check(button.user.id):
+            if self.BYD == False:
+                self.BYD = True
+                self.children[2].style = discord.ButtonStyle.success
+            else:
+                self.BYD = False
+                self.children[2].style = discord.ButtonStyle.gray
+
+            #結果を表示
+            await button.response.edit_message(view=self)
+            await self.check_show_dif(button)
+        else:
+            await button.response.send_message("きみは対戦者じゃないよ", ephemeral=True)
+
+    @ui.button(label="選択OK!!", style=discord.ButtonStyle.blurple)
+    async def ok(self, button: discord.ui.Button, interaction: discord.Interaction):
+        #対戦者かチェック
+        if await self.check(button.user.id):
+            #難易度が選ばれているか
+            if self.FTR == False and self.ETR == False and self.BYD == False:
+                await button.response.send_message("難易度が選ばれてないよ！！")
+            else:
+                #同じプレイヤーが再び押していないか
+                if button.user.id in self.click:
+                    await button.response.send_message("もう押してるよ！", ephemeral=True)
+                else:
+                    #ボタンをクリックした人を追加
+                    self.click.append(button.user.id)
+                    #二人ともがボタンを押したら処理を行う
+                    if len(self.click) == 2:
+                        #ボタンを決定チャットで上書き
+                        await button.response.edit_message("難易度が決定されたよ！")
+                        await button.followup.send(f"{button.user.display_name}がOKを選択したよ！ 難易度決定！")
+                        #決定した難易度をListに
+                        ls = []
+                        if self.FTR:
+                            ls.append("FTR")
+                        if self.ETR:
+                            ls.append("ETR")
+                        if self.BYD:
+                            ls.append("BYD")
+
+                        #レベル選択へ
+                        self.timeout_flg = False
+                        await Arcaea_command.s_sb_selectlevel(button, self.player[0], self.player[1], ls, self.EX_flg)
+                    else:
+                        await button.response.send_message(f"{button.user.display_name}がOKを選択したよ！")
+                
+        else:
+            await button.response.send_message("きみは対戦者じゃないよ", ephemeral=True)
+
+    async def check(self, user):
+        """対戦者以外ではないか確認"""
+        if user in self.player:
+                return True #対戦者
+        else:
+            return False #それ以外
+        
+    async def check_show_dif(self, button):
+        """今選択されている難易度を表示"""
+        ls = []
+        if self.FTR:
+            ls.append("FTR")
+        if self.ETR:
+            ls.append("ETR")
+        if self.BYD:
+            ls.append("BYD")
+
+        #返す文を作成
+        msg = "選択されている難易度"
+        for dif in ls:
+            msg += f":{dif}"
+
+        #送信
+        await button.followup.send(msg)
+
+    async def on_timeout(self):
+        if self.timeout_flg:
+            #タイムアウトになったらチャンネルを削除
+            await self.message.channel.delete()
+            #対戦ステータスを変更
+            await Arcaea_command.state_chenge(self.player[0], False)
+            await Arcaea_command.state_chenge(self.player[1], False)
+            
+
+class VSMusicLevelChoice(ui.View):
+    """課題曲レベル選択ボタン"""
+    def __init__(self, user1, user2, dif, EX_flg, timeout=180):
+        self.player = [user1, user2]
+        self.click = []
+        self.EX_flg = EX_flg
+        self.stop_flg = True
+        #各レベルの選択フラグ
+        self.level_dic = {"7":False,
+                          "7+":False,
+                          "8":False,
+                          "8+":False,
+                          "9":False,
+                          "9+":False,
+                          "10":False,
+                          "10+":False,
+                          "11":False,
+                          "12":False}
+        self.dif = dif #選択されてる難易度
+        self.FTR_Level = ["7", "7+", "8", "8+", "9", "9+", "10", "10+", "11"]
+        self.ETR_Level = ["8", "8+", "9", "9+"]
+        self.BYD_Level = ["9", "9+", "10", "10+", "11", "12"]
+        super().__init__(timeout=timeout)
+
+    @discord.ui.select(cls=discord.ui.Select, placeholder="課題曲のレベルを指定してね",options=[discord.SelectOption(label="ALL"), 
+                                                                                                  discord.SelectOption(label="7"),
+                                                                                                  discord.SelectOption(label="7+"),
+                                                                                                  discord.SelectOption(label="8"),
+                                                                                                  discord.SelectOption(label="8+"),
+                                                                                                  discord.SelectOption(label="9"),
+                                                                                                  discord.SelectOption(label="9+"),
+                                                                                                  discord.SelectOption(label="10"),
+                                                                                                  discord.SelectOption(label="10+"),
+                                                                                                  discord.SelectOption(label="11"),
+                                                                                                  discord.SelectOption(label="12")]
+                                                                                                  )
+    async def select(self, interaction: discord.Interaction, select: discord.ui.Select):
+        level = select.values[0]
+        #全レベル指定の場合
+        if level == "ALL":
+            #全レベルをTrueに
+            #選択されたレベルが選択中の難易度にあるか
+            if "FTR" in self.dif:
+                for key in self.FTR_Level:
+                    self.level_dic[key] = True
+            if "ETR" in self.dif:
+                for key in self.ETR_Level:
+                    self.level_dic[key] = True
+            if "BYD" in self.dif:
+                for key in self.BYD_Level:
+                    self.level_dic[key] = True
+        else:
+            #ALL以外
+            #選択されたレベルが選択中の難易度にあるか
+            if "FTR" in self.dif and level in self.FTR_Level:
+                pass
+            elif "ETR" in self.dif and level in self.ETR_Level:
+                pass
+            elif "BYD" in self.dif and level in self.BYD_Level:
+                pass
+            else:
+                #ない場合
+                return await interaction.response.send_message("選択した難易度にこのレベルはないよ")
+
+            #レベルを選択を辞書に反映
+            if self.level_dic[level] == False:
+                self.level_dic[level] = True
+            else:
+                self.level_dic[level] = False
+
+        #今選択されている難易度を取得
+        msg = "選択されているレベル"
+        for key, value in self.level_dic.items():
+            if value:
+                msg += f":{key}"
+
+        #送信
+        await interaction.response.send_message(msg)
+
+    @ui.button(label="選択OK!!", style=discord.ButtonStyle.success)
+    async def ok(self, button: discord.ui.Button, interaction: discord.Interaction):
+        #対戦者かチェック
+        if await self.check(button.user.id):
+            #選択されたレベルをチェック
+            ls = []
+            for key, value in self.level_dic.items():
+                if value:
+                    ls.append(key)
+            
+            if len(ls) == 0:
+                #レベルが選ばれてないとき
+                await button.response.send_message("レベルが選択されてないよ！")
+            else:
+                #同じプレイヤーが再び押していないか
+                if button.user.id in self.click:
+                    await button.response.send_message("もう押してるよ！", ephemeral=True)
+                else:
+                    #ボタンをクリックした人を追加
+                    self.click.append(button.user.id)
+                    #二人ともがボタンを押したら処理を行う
+                    if len(self.click) == 2:
+                        #ボタンを無効化
+                        self.children[0].disabled, self.children[1].disabled = True, True
+                        await button.response.edit_message(view=self)
+                        await button.followup.send(f"{button.user.display_name}がOKを選択したよ！ 課題曲を発表します！！")
+                        #+を.7形式に変換
+                        temp_ls = []
+                        for lv in ls:
+                            if lv[-1] == "+":
+                                lv_f = float(lv[:-1]) + 0.7
+                                temp_ls.append(lv_f)
+                            else:
+                                lv_f = float(lv)
+                                temp_ls.append(lv_f)
+
+                        #終了フラグを消す
+                        self.stop_flg = False
+                        #曲選択へ
+                        await Arcaea_command.s_sb_musicselect(button, self.player[0], self.player[1], self.dif, temp_ls, self.EX_flg)
+                    else:
+                        await button.response.send_message(f"{button.user.display_name}がOKを選択したよ！")
+        else:
+            await button.response.send_message("きみは対戦者じゃないよ", ephemeral=True)
+
+    async def check(self, user):
+        """対戦者以外ではないか確認"""
+        if user in self.player:
+            return True #対戦者
+        else:
+            return False #それ以外
+
 
 
 class VSMusicButton(ui.View):

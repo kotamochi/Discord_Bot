@@ -89,7 +89,6 @@ async def Random_Select_Level(level1=None, level2=None):
 
 async def match_host(ctx, user, kind):
     """対戦のホストを立てる"""
-    #メンバー登録しているか
     #メンバーリストを取得
     MemberList = pd.read_csv(os.environ["MEMBER"])
     #登録済みか確認
@@ -103,10 +102,11 @@ async def match_host(ctx, user, kind):
     if check:
         return await ctx.response.send_message(f"あなたは対戦中、もしくは対戦ホスト中です。", ephemeral=True)
         
+    #対戦形式を読み込み
     with open(os.environ["VS_DICT"], mode="r") as f:
         vs_dict = json.load(f)
     #対戦募集ボタンを表示
-    view = ui.VSHostButton(user, kind, timeout=60)
+    view = ui.VSHostButton(user, kind, timeout=120) #2分で募集を削除
     await ctx.response.send_message(f"{ctx.user.mention}:Create {vs_dict[kind]} Room", view=view)
 
     #対戦フラグをDataFrameに登録
@@ -132,24 +132,16 @@ async def state_chenge(user:int, state:bool):
 
 async def Arcaea_ScoreBattle(ctx, host_id, guest_id, battle_type):
     """スコアバトルを行う関数"""
-    #対戦中、対戦待機中でないか確認
-    check = await state_check(guest_id)
-    if check:
-        return await ctx.response.send_message(f"あなたは対戦中、もしくは対戦ホスト中です。", ephemeral=True)
-        
     #対戦を始める
     try:
         #ゲスト側の対戦ステータスを変更
         await state_chenge(guest_id, True)
-
-        #対戦方式によって分岐
-        b_type = int(battle_type)
-
-        
         #ユーザーを取得
         host_user = ctx.client.get_user(host_id)
         guest_user = ctx.client.get_user(guest_id)
 
+        #対戦方式によって分岐
+        b_type = int(battle_type)
         #1vs1対決
         if b_type == 0 or b_type == 1:
             try:
@@ -300,46 +292,71 @@ async def Singles_RandomScoreBattle(ctx, host_user, guest_user, EX_flg):
 
     #スレッド内でのエラーをキャッチ
     try:
-        #難易度選択時のメッセージチェック関数
-        def checkLv(m):
+        #リンクプレイコードのチェック
+        def checkLinkID(m):
             try:
-                ms = m.content.split() #受け取ったメッセージをlistに
-                for n in ms:
-                    if n[-1] == "+":
-                        float(n[:-1]) #数値であるか検証
-                    elif n == "all":
-                        pass
-                    else:
-                        float(n) #数値であるか判定
-                return True
+                ms = m.content
+                if len(ms) == 6:
+                    str(ms[0:4])
+                    int(ms[4:6])
+                    return True
             except Exception:
                 return False
 
         #メッセージとボタンを作成
-        an = f"スレッド：{thread.mention} \n {host_user.display_name} vs {guest_user.display_name}"
-        ms = f"{host_user.mention} vs {guest_user.mention} \n (途中終了する際は二人ともが「終了」を押してください。)"
+        an = f"Channel：{thread.mention} \n {host_user.display_name} vs {guest_user.display_name}"
+        ms = f"Channel：{host_user.mention} vs {guest_user.mention} \n (途中終了する時はお互いに「終了」を押してね)"
         b_stop = ui.VSStopbutton(host_user.id, guest_user.id, timeout=None)
 
         #メッセージを送信して難易度選択を待機
-        await ctx.response.send_message(an)
+        await ctx.response.send_message(an, delete_after=30)
         await thread.send(ms, view=b_stop)
-        await thread.send("課題曲の難易度を選択してください。(全曲からの場合はallと入力してください。)")
-
+        await thread.send(f"{host_user.mention}:Link Playのルームを作成して、ルームコードを入力してね")
+        
         #メッセージを受け取ったスレッドに対してのみ返す
         while True:
-            msg = await ctx.client.wait_for('message', check=checkLv, timeout=120)
-
-            if thread.id == msg.channel.id:
+            msg = await ctx.client.wait_for('message', check=checkLinkID, timeout=600)
+            #同一スレッドかつホストの入力であるか確認
+            if thread.id == msg.channel.id and host_user.id == msg.author.id:
                 break
             else:
                 pass
 
-        await asyncio.sleep(1) #インターバル
+        await asyncio.sleep(0.5) #インターバル
 
-        #渡されたコマンドを分割
-        select_difficult = msg.content.split(' ')
+        #課題曲難易度選択のボタンを表示
+        view = ui.VSMusicDifChoice(host_user.id, guest_user.id, EX_flg, timeout=600)
+        await thread.send("難易度を選択してね!お互いがOKを押したら次に進むよ",view=view)
 
-        score1, score2, music_ls = [], [], []
+    #スレッド内でトラブルが起こったらスレッドを閉じる
+    except Exception:
+        await asyncio.sleep(1) #間を空ける
+        await thread.send("タイムアウトより対戦が終了されたよ。チャンネルを削除するね")
+        await asyncio.sleep(3) #スレッド削除まで待機
+        await thread.delete()
+        #対戦ステータスを変更
+        await state_chenge(host_user.id, False)
+        await state_chenge(guest_user.id, False)
+        
+
+async def s_sb_selectlevel(ctx, host_user_id, guest_user_id, dif_ls, EX_flg):
+    """レベル選択ボタンを表示"""
+    view = ui.VSMusicLevelChoice(host_user_id, guest_user_id, dif_ls, EX_flg, timeout=600)
+    await ctx.followup.send("レベルを選択してね!お互いがOKを押したら次に進むよ",view=view)
+    await asyncio.sleep(600)
+    #10分待って先に進んでいなかったら強制的に終了
+    if view.stop_flg:
+        try:
+            #チャンネルを削除
+            await ctx.channel.delete()
+            #対戦ステータスを変更
+            await state_chenge(host_user_id, False)
+            await state_chenge(guest_user_id, False)
+        except discord.errors.NotFound:
+            pass
+    else:
+        #処理を終わる
+        return
 
         N_music = 2 #対戦曲数を指定(基本的に2)
         count = 0 #何曲目かをカウントする

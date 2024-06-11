@@ -9,7 +9,7 @@ import ui
 import Arcaea_command
 
 
-#ユーザー登録変数の読み込み
+#.envファイルの読み込み
 dotenv.load_dotenv()
 #アクセストークンを取得
 TOKEN = os.environ["DEBUG_BOT_TOKEN"]
@@ -39,24 +39,21 @@ async def on_ready():
 
     #ログイン通知
     await Creater_DM.send("起動したよ")
-    #起動確認処理実行
+    #起動チェック処理実行
     await chack_online.start()
 
-
-@tasks.loop(seconds=60) #60秒ごとに実行
+#60秒ごとに実行
+@tasks.loop(seconds=60) 
 async def chack_online():
     """毎日定刻に起動チェックを行う"""
     #時刻確認
-
     now = datetime.datetime.now()
     oncheaktime =now.strftime('%H:%M')
     musictasktime = now.strftime('%A %H:%M')
 
+    #定刻に管理者DMに起動チェックを送信
     if oncheaktime == '09:00':
-        #管理者DMに起動チェックと対戦Logを送信
         await Creater_DM.send("起動してるよ")
-        await Creater_DM.send(file=discord.File('BattleLog.csv'))
-        await Creater_DM.send(file=discord.File('BattleLog_EXScore.csv'))
 
 
 @client.event
@@ -69,20 +66,17 @@ async def on_member_join(member):
 
 
 #コマンド
-@tree.command(name="rand", description="ランダム選曲(例:level=9+,level2=11 ➡ 9+~11)\n(ランダム選曲CHのみ)")
-async def music_random(ctx, level:str=None, level2:str=None):
+@tree.command(name="rand", description="ランダム選曲(例:例:dif=FTR,level=9+,level2=11 ➡ FTR 9+~11))\n(ランダム選曲CHのみ)")
+async def music_random(ctx, dificullity:str=None, level:str=None, level2:str=None):
+    """ランダム選曲を行うコマンド"""
     try:
-        #ランダム選曲チャンネルのみ有効
+        #ランダム選曲CHのみで有効
         if ctx.channel_id == RandomSelect_CH or ctx.channel_id == Create_RoomID:
-            if level == None and level2 == None:
-                music, level_str, dif, image = await Arcaea_command.Random_Select_Level()
-            elif level != None and level2 == None:
-                music, level_str, dif, image  = await Arcaea_command.Random_Select_Level(level)
-            else:
-                music, level_str, dif, image  = await Arcaea_command.Random_Select_Level(level, level2)
+            #選曲を実行
+            music, level_str, dif, image = await Arcaea_command.Random_Select_Level(level, level2, dificullity)
 
             #ランダムで決まった曲を返信
-            return await ctx.response.send_message(f"課題曲:{music} {dif}:{level_str}です!!", file=discord.File(image))
+            return await ctx.response.send_message(f"{ctx.user.mention}さんに課題曲:{music} {dif}:{level_str}です!!", file=discord.File(image))
 
         else:
             #利用場所エラー
@@ -90,38 +84,46 @@ async def music_random(ctx, level:str=None, level2:str=None):
 
     #エラー処理
     except Exception:
-        return await ctx.response.send_message("コマンドが間違ってるかも。もう一度試してみて!", ephemeral=True)
+        return await ctx.response.send_message("コマンドが正しく動作しませんでした。もう一度試してみて!", ephemeral=True)
 
 
 @tree.command(name="sign_up", description="対戦を使うための登録(初回のみ)\n(対戦CHのみ)")
 async def sign_up(ctx):
-    #対戦チャンネルのみ有効
-    if ctx.channel_id == RandomBattle_CH or ctx.channel_id == Create_RoomID:
-        #メンバーリストを取得
-        MemberList = pd.read_csv(os.environ["MEMBER"])
-        #登録済みか確認
-        if MemberList["Discord_ID"].isin([ctx.user.id]).any().any():
-            return await ctx.response.send_message("既に登録されています。", ephemeral=True)
+    """対戦"""
+    try:
+        #対戦CHのみで有効
+        if ctx.channel_id == RandomBattle_CH or ctx.channel_id == Create_RoomID:
+            #メンバーリストを取得
+            MemberList = pd.read_csv(os.environ["MEMBER"])
+            #登録済みか確認
+            if MemberList["Discord_ID"].isin([ctx.user.id]).any().any():
+                #登録済みなら通知して処理を終わる
+                return await ctx.response.send_message("既に登録されています。", ephemeral=True)
 
-        #登録する
-        signup_user = pd.DataFrame([[ctx.user.display_name, ctx.user.id, False]], columns=MemberList.columns) #新規ユーザーデータを作成
-        MemberList = pd.concat([MemberList, signup_user])
-        MemberList = MemberList.astype({"Discord_ID":"int64"})
-        MemberList.to_csv(os.environ["MEMBER"], index=False)
-            
-        return await ctx.response.send_message("登録完了です!")
-    else:
-        #利用場所エラー
-        return await noaction_messeage(ctx)
+            #登録処理
+            signup_user = pd.DataFrame([[ctx.user.display_name, ctx.user.id, False]], columns=MemberList.columns) #新規ユーザーデータを作成
+            MemberList = pd.concat([MemberList, signup_user]) #既存データと結合
+            MemberList = MemberList.astype({"Discord_ID":"int64"}) #データの型変換
+            MemberList.to_csv(os.environ["MEMBER"], index=False) #保存
+
+            #登録完了を知らせる
+            return await ctx.response.send_message("登録完了です!")
+        else:
+            #利用場所エラー
+            return await noaction_messeage(ctx)
+        
+    #エラー処理
+    except Exception:
+        return await ctx.response.send_message("コマンド処理中にエラーが発生したよ。もう一度試してみて!", ephemeral=True)
 
 
 @tree.command(name="vs", description="対戦システムを起動。\n(対戦CHのみ)")
 async def vs_select(ctx):
     try:
-        #対戦チャンネルのみ有効
+        #対戦CHでのみ有効
         if ctx.channel_id == RandomBattle_CH or ctx.channel_id == Create_RoomID:
             #選択画面の表示
-            view = ui.VSButton(timeout=300)
+            view = ui.VSButton(timeout=300) #5分でuiを削除
             return await ctx.response.send_message(view=view)
         
         else:
@@ -130,17 +132,19 @@ async def vs_select(ctx):
     
     #エラー処理
     except Exception:
-        return await ctx.response.send_message("コマンドが間違ってるかも。もう一度試してみて!", ephemeral=True)
+        return await ctx.response.send_message("コマンド処理中にエラーが発生したよ。もう一度試してみて!", ephemeral=True)
 
 
 @tree.command(name="log", description="対戦記録を表示。\n(対戦CHのみ)")
 async def log_view(ctx):
     try:
-        #対戦チャンネルのみ有効
+        #対戦CHでのみ有効
         if ctx.channel_id == RandomBattle_CH or ctx.channel_id == Create_RoomID:
+            user = ctx.user #コマンドを入力したユーザー名を取得
+            
             ##Score勝負の結果集計
             file_1vs1_log = os.environ["SCORE_LOG"]
-            user = ctx.user #入力したユーザー名を取得
+            #戦績を取得
             battledata = await Arcaea_command.User_Status(ctx, user.id, file_1vs1_log)
 
             #表示用に戦績を整形する
@@ -160,6 +164,7 @@ async def log_view(ctx):
 
             #EXScore勝負の結果集計
             file_EX1vs1_log = os.environ["EXSCORE_LOG"]
+            #戦績を取得
             battledata = await Arcaea_command.User_Status(ctx, user.id, file_EX1vs1_log)
 
             #表示用に戦績を整形する
@@ -183,13 +188,14 @@ async def log_view(ctx):
     
     #エラー処理
     except Exception:
-        return await ctx.response.send_message("コマンドが間違ってるかも。もう一度試してみて!", ephemeral=True)
+        return await ctx.response.send_message("コマンド処理中にエラーが発生したよ。もう一度試してみて!", ephemeral=True)
 
 
 @tree.command(name="master_log", description="対戦記録ファイルを出力。(作者のみ)", )
 async def master_log_view(ctx):
+    """管理者用コマンド 戦績ファイルの取得"""
     try:
-        #戦績ファイルを出力する(開発者用)
+        #管理者のDMでのみ有効
         if ctx.channel_id == Creater_DM.id:
             await ctx.response.send_message(file=discord.File(os.environ["SCORE_LOG"]))
             await  ctx.followup.send(file=discord.File(os.environ["EXSCORE_LOG"]))
@@ -208,38 +214,6 @@ async def master_log_view(ctx):
 #async def state(ctx):
 #    await Arcaea_command.state_chenge(ctx.user.id, False)
 #    return await ctx.response.send_message("変更しました。")
-    
-
-    ##ポテンシャル計算機(身内用)
-    #if message.channel.id == 1071411461508841593:
-    #    #ポテンシャルを計算する
-    #    if message.content.startswith('/a pt'):
-    #        comannd = message.content.split(' ')
-    #        music_ls = []
-    #        try:
-    #            score = int(comannd[-1])
-    #            byd_flg = "FTR"
-    #            for i in range(len(comannd)-3):
-    #                music_ls.append(comannd[i+2])
-    #
-    #        except ValueError:
-    #            score = int(comannd[-2])
-    #            byd_flg = comannd[-1]
-    #
-    #            for i in range(len(comannd)-4):
-    #                music_ls.append(comannd[i+2])
-    #
-    #        #listから曲名を作成
-    #        music = " ".join(music_ls)
-    #
-    #        #ポテ計算を実行
-    #        potential, score_r, difficult = Arcaea_command.Potential_Score(music, score, byd_flg)
-    #
-    #        #返信文を作成
-    #        reply = f"Music:{music} ({difficult})\nScore:{score_r}\nPt:{potential}"
-    #
-    #        #メンションをつけて返信
-    #        await message.reply(reply)
 
 
 async def noaction_messeage(ctx):
@@ -249,8 +223,3 @@ async def noaction_messeage(ctx):
 
 #Botを起動
 client.run(TOKEN)
-#try:
-#    client.run(TOKEN) #bot起動処理
-#except discord.errors.HTTPException:
-#    os.system('kill 1')
-#    os.system("python restarter.py")
