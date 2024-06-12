@@ -57,9 +57,9 @@ async def chack_online():
     if oncheaktime == '09:00':
         #メンバーリストの更新
         guild_info = client.get_guild(Server_ID) #サーバー情報を取得
-        members_info = guild_info.get_role(MemberRole_ID).members
-        sub_info = guild_info.get_role(SubRole_ID).members
-        sub_ids = [i.id for i in sub_info]
+        members_info = guild_info.get_role(MemberRole_ID).members #メンバー一覧を取得
+        sub_info = guild_info.get_role(SubRole_ID).members #サブ一覧を取得
+        sub_ids = [i.id for i in sub_info] #サブのidリスト作成
         
         #一人ずつデータを作成
         member_list = []
@@ -68,7 +68,7 @@ async def chack_online():
                 #サブ垢は飛ばす
                 pass
             else:
-                #データ作成
+                #ユーザーデータ作成
                 user_data = [member.display_name, member.id, False]
                 #データをリストに追加
                 member_list.append(user_data)
@@ -87,7 +87,7 @@ async def on_member_join(member):
     """サーバー参加時にロール付与"""
     #Roleオブジェクトを取得
     role = member.guild.get_role(MemberRole_ID)
-    #入ってきたMemberに役職を付与
+    #入ってきたMemberにメンバーロールを付与
     await member.add_roles(role)
     await client.guilds.get_role(MemberRole_ID)
 
@@ -96,12 +96,12 @@ async def on_member_join(member):
 async def music_random(ctx, dificullity:str=None, level:str=None, level2:str=None):
     """ランダム選曲を行うコマンド"""
     try:
-        #ランダム選曲CHのみで有効
+        #ランダム選曲CHでのみ有効
         if ctx.channel_id == RandomSelect_CH or ctx.channel_id == Create_RoomID:
             #選曲を実行
             music, level_str, dif, image = await Arcaea_command.Random_Select_Level(level, level2, dificullity)
 
-            #ランダムで決まった曲を返信
+            #曲を送信
             return await ctx.response.send_message(f"{ctx.user.mention}さんに課題曲:{music} {dif}:{level_str}です!!", file=discord.File(image))
 
         else:
@@ -110,14 +110,14 @@ async def music_random(ctx, dificullity:str=None, level:str=None, level2:str=Non
 
     #エラー処理
     except Exception:
-        return await ctx.response.send_message("コマンドが正しく動作しませんでした。もう一度試してみて!", ephemeral=True)
+        return await ctx.response.send_message("コマンド処理中にエラーが発生しました。もう一度試してみて!", ephemeral=True)
 
 
-@tree.command(name="sign_up", description="対戦を使うための登録(初回のみ)\n(対戦CHのみ)")
+@tree.command(name="sign_up", description="対戦を使うための登録(基本不要)\n(対戦CHのみ)")
 async def sign_up(ctx):
-    """対戦"""
+    """メンバー登録"""
     try:
-        #対戦CHのみで有効
+        #対戦CHでのみ有効
         if ctx.channel_id == RandomBattle_CH or ctx.channel_id == Create_RoomID:
             #メンバーリストを取得
             MemberList = pd.read_csv(os.environ["MEMBERLIST"])
@@ -140,40 +140,61 @@ async def sign_up(ctx):
         
     #エラー処理
     except Exception:
-        return await ctx.response.send_message("コマンド処理中にエラーが発生したよ。もう一度試してみて!", ephemeral=True)
+        return await ctx.response.send_message("コマンド処理中にエラーが発生しました。もう一度試してみて!", ephemeral=True)
 
 
 @tree.command(name="vs", description="対戦システムを起動。\n(対戦CHのみ)")
 async def vs_select(ctx):
+    """対戦メニューを表示"""
     try:
         #対戦CHでのみ有効
         if ctx.channel_id == RandomBattle_CH or ctx.channel_id == Create_RoomID:
             #選択画面の表示
-            view = ui.VSButton(timeout=300) #5分でuiを削除
-            return await ctx.response.send_message(view=view)
-        
+            await ctx.response.defer() #インタラクションを返す
+            view = ui.VSButton(timeout=300) #5分でメニューを削除
+            msg = await ctx.followup.send("対戦方式を選択してください。", view=view) #メニューを送信
+            await view.msg_send(msg) #メニューメッセージを渡す
         else:
             #利用場所エラー
             return await noaction_messeage(ctx)
     
     #エラー処理
     except Exception:
-        return await ctx.response.send_message("コマンド処理中にエラーが発生したよ。もう一度試してみて!", ephemeral=True)
+        return await ctx.response.send_message("コマンド処理中にエラーが発生しました。もう一度試してみて!", ephemeral=True)
+
+
+@tree.command(name="reset_state", description="対戦中ステータスを待機中にする(基本バグ発生時のみ)")
+async def reset_state(ctx):
+    """対戦ステータスを強制的に待機状態にする"""
+    try:
+        #対戦CHでのみ有効
+        if ctx.channel_id == RandomBattle_CH or ctx.channel_id == Create_RoomID:
+            #選択画面の表示
+            await Arcaea_command.state_chenge(ctx.user.id, False)
+            ctx.response.send_message("あなたの対戦ステータスを待機中に変更しました。")
+        else:
+            #利用場所エラー
+            return await noaction_messeage(ctx)
+    
+    #エラー処理
+    except Exception:
+        return await ctx.response.send_message("コマンド処理中にエラーが発生しました。もう一度試してみて!", ephemeral=True)
 
 
 @tree.command(name="log", description="対戦記録を表示。\n(対戦CHのみ)")
 async def log_view(ctx):
+    """戦績を表示"""
     try:
         #対戦CHでのみ有効
         if ctx.channel_id == RandomBattle_CH or ctx.channel_id == Create_RoomID:
             user = ctx.user #コマンドを入力したユーザー名を取得
             
-            ##Score勝負の結果集計
-            file_1vs1_log = os.environ["SCORE_LOG"]
+            #Score勝負の結果集計
             #戦績を取得
+            file_1vs1_log = os.environ["SCORE_LOG"] #戦績ファイル取得
             battledata = await Arcaea_command.User_Status(ctx, user.id, file_1vs1_log)
 
-            #表示用に戦績を整形する
+            #表示用に戦績を整える
             result = ""
             for _, battle_recode in battledata.iterrows():
                 result += f"**{battle_recode['User']} || W:{battle_recode['Win']}-{battle_recode['Lose']}:L (D:{battle_recode['Drow']})**\n"
@@ -189,8 +210,8 @@ async def log_view(ctx):
                 embed.add_field(name="通常スコアバトル", value=result, inline=False)
 
             #EXScore勝負の結果集計
-            file_EX1vs1_log = os.environ["EXSCORE_LOG"]
             #戦績を取得
+            file_EX1vs1_log = os.environ["EXSCORE_LOG"] #戦績ファイル取得
             battledata = await Arcaea_command.User_Status(ctx, user.id, file_EX1vs1_log)
 
             #表示用に戦績を整形する
@@ -202,7 +223,6 @@ async def log_view(ctx):
             if result == "":
                 embed.add_field(name="EXスコアバトル", value="該当なし", inline=False)
             else:
-                #埋め込みメッセージを作成
                 embed.add_field(name="EXスコアバトル", value=result, inline=False)
 
             #戦績を送信
@@ -214,7 +234,7 @@ async def log_view(ctx):
     
     #エラー処理
     except Exception:
-        return await ctx.response.send_message("コマンド処理中にエラーが発生したよ。もう一度試してみて!", ephemeral=True)
+        return await ctx.response.send_message("コマンド処理中にエラーが発生しました。もう一度試してみて!", ephemeral=True)
 
 
 @tree.command(name="master_log", description="対戦記録ファイルを出力。(管理者のみ)", )
@@ -223,6 +243,7 @@ async def master_log_view(ctx):
     try:
         #管理者のDMでのみ有効
         if ctx.channel_id == Creater_DM.id:
+            #戦績のファイルを送信
             await ctx.response.send_message(file=discord.File(os.environ["SCORE_LOG"]))
             await  ctx.followup.send(file=discord.File(os.environ["EXSCORE_LOG"]))
 
@@ -233,11 +254,11 @@ async def master_log_view(ctx):
     #エラー処理
     except Exception:
         return await ctx.response.send_message("データを正しく出力できませんでした。", ephemeral=True)
-    
+
 
 async def noaction_messeage(ctx):
     """使用できない場所でコマンドを使用したときに送信"""
-    await ctx.response.send_message("ここではこのコマンドは使用できません", ephemeral=True)
+    await ctx.response.send_message("ここでこのコマンドは使用できません。", ephemeral=True)
 
 
 #Botを起動

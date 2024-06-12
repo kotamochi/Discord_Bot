@@ -19,6 +19,10 @@ class VSButton(ui.View):
     async def exscore(self, button: discord.ui.Button, interaction: discord.Interaction):
         """1vs1(EXScore)"""
         await Arcaea_command.match_host(button, button.user.id, "1")
+        
+    async def msg_send(self, msg):
+        #ボタンメッセージを渡す
+        self.message = msg
 
     async def on_timeout(self):
         """タイムアウト処理"""
@@ -28,7 +32,7 @@ class VSButton(ui.View):
 
 class VSHostButton(ui.View):
     """対戦募集ボタン"""
-    def __init__(self, user, kind, timeout=180):
+    def __init__(self, user, kind, timeout=None):
         self.host = user
         self.kind = kind
         self.timeout_flg = True
@@ -58,12 +62,16 @@ class VSHostButton(ui.View):
             await button.response.send_message("募集を取り消しました。", ephemeral=True)
         else:
             await button.response.send_message("あなたはこの募集のホストではありません。", ephemeral=True)
+              
+    async def msg_send(self, msg):
+        #ボタンメッセージを渡す
+        self.message = msg
             
     async def on_timeout(self):
         """タイムアウト処理"""
         if self.timeout_flg:
             #タイムアウトになったらボタンを削除
-            await self.message.edit("タイムアウトにより、募集は取り消されました。")
+            await self.message.edit(content="タイムアウトにより、募集は取り消されました。", view=None)
             #ホストのステータスを変更
             await Arcaea_command.state_chenge(self.host, False)
 
@@ -73,7 +81,6 @@ class VSStopbutton(ui.View):
     def __init__(self, user1, user2, timeout=180):
         self.player = [user1, user2]
         self.click = []
-        self.vsstop = False
         super().__init__(timeout=timeout)
 
     @ui.button(label="終了", style=discord.ButtonStyle.gray)
@@ -89,11 +96,7 @@ class VSStopbutton(ui.View):
                 self.click.append(button.user.id)
                 #二人ともがボタンを押したら終了処理を行う
                 if len(self.click) == 2:
-                    #ボタンを無効化
-                    self.disabled = True
-                    await button.response.edit_message(view=self)
-                    await button.followup.send(f"{button.user.display_name}が終了を選択しました。\n対戦を終了します。")
-                    self.vsstop = True #終了フラグを立てる
+                    await button.response.send_message(f"{button.user.display_name}が終了を選択しました。\n対戦を終了します。")
                     await asyncio.sleep(3) #インターバル
                     await button.channel.delete() #スレッドを閉じる
                     #対戦ステータスを変更
@@ -114,7 +117,8 @@ class VSStopbutton(ui.View):
 
 class VSMusicDifChoice(ui.View):
     """課題曲難易度選択ボタン"""
-    def __init__(self, user1, user2, EX_flg, timeout=None):
+    def __init__(self, channel, user1, user2, EX_flg, timeout=None):
+        self.channel = channel
         self.player = [user1, user2]
         self.click = []
         self.EX_flg = EX_flg
@@ -242,17 +246,21 @@ class VSMusicDifChoice(ui.View):
 
     async def on_timeout(self):
         """タイムアウト処理"""
-        if self.timeout_flg:
-            #タイムアウトになったらチャンネルを削除
-            await self.message.channel.delete()
-            #対戦ステータスを変更
-            await Arcaea_command.state_chenge(self.player[0], False)
-            await Arcaea_command.state_chenge(self.player[1], False)
+        try:
+            if self.timeout_flg:
+                #タイムアウトになったらチャンネルを削除
+                await self.channel.delete()
+                #対戦ステータスを変更
+                await Arcaea_command.state_chenge(self.player[0], False)
+                await Arcaea_command.state_chenge(self.player[1], False)
+        except discord.HTTPException:
+            pass
             
 
 class VSMusicLevelChoice(ui.View):
     """課題曲レベル選択ボタン"""
-    def __init__(self, user1, user2, dif, EX_flg, timeout=None):
+    def __init__(self, channel, user1, user2, dif, EX_flg, timeout=None):
+        self.channel = channel
         self.player = [user1, user2]
         self.click = []
         self.EX_flg = EX_flg
@@ -270,7 +278,7 @@ class VSMusicLevelChoice(ui.View):
                           "12":False}
         self.dif = dif #選択されてる難易度
         self.FTR_Level = ["7", "7+", "8", "8+", "9", "9+", "10", "10+", "11"]
-        self.ETR_Level = ["8", "8+", "9", "9+"]
+        self.ETR_Level = ["8", "8+", "9", "9+", "10", "10+"]
         self.BYD_Level = ["9", "9+", "10", "10+", "11", "12"]
         super().__init__(timeout=timeout)
 
@@ -381,17 +389,21 @@ class VSMusicLevelChoice(ui.View):
 
     async def on_timeout(self):
         """タイムアウト処理"""
-        if self.timeout_flg:
-            #タイムアウトになったらチャンネルを削除
-            await self.message.channel.delete()
-            #対戦ステータスを変更
-            await Arcaea_command.state_chenge(self.player[0], False)
-            await Arcaea_command.state_chenge(self.player[1], False)
+        try:
+            if self.timeout_flg:
+                #タイムアウトになったらチャンネルを削除
+                await self.channel.delete()
+                #対戦ステータスを変更
+                await Arcaea_command.state_chenge(self.player[0], False)
+                await Arcaea_command.state_chenge(self.player[1], False)
+        except discord.HTTPException:
+            pass
 
 
 class VSMusicButton(ui.View):
     """課題曲選択ボタン"""
-    def __init__(self, user1, user2, dif_ls, level_ls, music, EX_flg, Score_Count=None, timeout=None):
+    def __init__(self, channel, user1, user2, dif_ls, level_ls, music, EX_flg, Score_Count=None, timeout=None):
+        self.channel = channel
         self.player = [user1, user2]
         self.ok_click = []
         self.reroll_click = []
@@ -465,13 +477,15 @@ class VSMusicButton(ui.View):
         
     async def on_timeout(self):
         """タイムアウト処理"""
-        if self.timeout_flg:
-            #タイムアウトになったらチャンネルを削除
-            await self.message.channel.delete()
-            #対戦ステータスを変更
-            await Arcaea_command.state_chenge(self.player[0], False)
-            await Arcaea_command.state_chenge(self.player[1], False)
-            
+        try:
+            if self.timeout_flg:
+                #タイムアウトになったらチャンネルを削除
+                await self.channel.delete()
+                #対戦ステータスを変更
+                await Arcaea_command.state_chenge(self.player[0], False)
+                await Arcaea_command.state_chenge(self.player[1], False)
+        except discord.HTTPException:
+            pass
             
 class VSScoreCheck(ui.View):
     """スコア確認ボタン"""
@@ -484,7 +498,7 @@ class VSScoreCheck(ui.View):
     async def scoreok(self, button: discord.ui.Button, interaction: discord.Interaction):
         if button.user.id == self.user_id:
             self.check_flg = True
-            await button.response.send_message("入力を確定したよ!!")
+            await button.response.edit_message(content="入力を確定したよ!!", view=None)
         else:
             await button.response.send_message("スコア入力者じゃないよ", ephemeral=True)
 
@@ -492,6 +506,6 @@ class VSScoreCheck(ui.View):
     async def reinput(self, button: discord.ui.Button, interaction: discord.Interaction):
         if button.user.id == self.user_id:
             self.check_flg = False
-            await button.response.send_message("スコアを入力し直してね")
+            await button.response.edit_message(content="スコアを入力し直してね", view=None)
         else:
             await button.response.send_message("スコア入力者じゃないよ", ephemeral=True)

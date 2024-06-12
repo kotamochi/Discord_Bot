@@ -9,49 +9,88 @@ import pandas as pd
 from datetime import datetime, timedelta
 import ui
 
+#ユーザー環境変数を読み込み
+dotenv.load_dotenv()
 
-async def Random_Select_Level(level1=None, level2=None):
+async def Random_Select_Level(level1=None, level2=None, dif=None, level_list=None):
     """ランダム選曲機能"""
-    #ユーザー環境変数を読み込み
-    dotenv.load_dotenv()
 
-    #レベル指定があるか
-    if level1 == None and level2 == None:
-        level1, level2 = "0", "12" #全曲指定にする
-    elif level1 != None and level2 == None:
-        level2 = level1            #単一の難易度のみにする
+    #ランダム選曲機能の時
+    if level_list == None:
+        #レベル指定があるか
+        if level1 == None and level2 == None:
+            level1, level2 = "0", "12" #全曲指定にする
+        elif level1 != None and level2 == None:
+            level2 = level1            #単一の難易度のみにする
 
-    #＋難易度が指定された時は.7表記に変更する
-    try:
-        #引き数を数値型に変換
-        level1 = float(level1)
-    except ValueError:
-        #引き数を数値型に変換
-        if level1[-1] == "+":
-            level1 = float(level1[:-1]) + 0.7
+        #＋難易度が指定された時は.7表記に変更する
+        try:
+            #引き数を数値型に変換
+            level1 = float(level1)
+        except ValueError:
+            #引き数を数値型に変換
+            if level1[-1] == "+":
+                level1 = float(level1[:-1]) + 0.7
 
-    try:        
-        level2 = float(level2)
-    except ValueError:
-        if level2[-1] == "+":
-            level2 = float(level2[:-1]) + 0.7
-
-
-    #楽曲情報をデータフレームに読み込む
-    df_music = pd.read_csv(os.environ["MUSIC"])
-
-    #楽曲数を取得
-    df_music_FTR = df_music[df_music["FTR_Level"] >= level1].copy()
-    df_music_FTR = df_music_FTR[df_music_FTR["FTR_Level"] <= level2]
-
-    df_music_ETR = df_music[df_music["ETR_Level"] >= level1].copy()
-    df_music_ETR = df_music_ETR[df_music_ETR["ETR_Level"] <= level2]
-
-    df_music_BYD = df_music[df_music["BYD_Level"] >= level1].copy()
-    df_music_BYD = df_music_BYD[df_music_BYD["BYD_Level"] <= level2]
+        try:        
+            level2 = float(level2)
+        except ValueError:
+            if level2[-1] == "+":
+                level2 = float(level2[:-1]) + 0.7
 
 
-    df_range_music = pd.concat([df_music_FTR, df_music_ETR, df_music_BYD])
+        #楽曲情報をデータフレームに読み込む
+        df_music = pd.read_csv(os.environ["MUSIC"])
+
+        async def get_music(dif_name):
+            """指定難易度の楽曲データを取得"""
+            df = df_music[df_music[dif_name] >= level1].copy()
+            df = df[df[dif_name] <= level2]
+
+            return df
+
+        #難易度指定があるか
+        if dif == "FTR" or dif == "ftr":
+            df_range_music = await get_music("FTR_Level")
+        elif dif == "ETR" or dif == "etr":
+            df_range_music = await get_music("ETR_Level")
+        elif dif =="BYD" or dif == "byd":
+            df_range_music = await get_music("BYD_Level")
+        else:
+            #指定がなければ全部
+            df_music_FTR = await get_music("FTR_Level")
+            df_music_ETR = await get_music("ETR_Level")
+            df_music_BYD = await get_music("BYD_Level")
+
+            df_range_music = pd.concat([df_music_FTR, df_music_ETR, df_music_BYD])
+
+    #対戦の時
+    else:
+        #楽曲情報をデータフレームに読み込む
+        df_music = pd.read_csv(os.environ["MUSIC"])
+
+        async def get_music_b(dif_name):
+            """指定難易度の楽曲データを取得(対戦用)"""
+            count = 0
+            for lv in level_list:  
+                df = df_music[df_music[f"{dif_name}_Level"] == lv].copy()
+                if count == 0:
+                    music_df = df
+                    count += 1
+                else:
+                    music_df = pd.concat([music_df, df])
+
+            return music_df
+
+        #選択された難易度
+        count = 0
+        for i in dif:
+            df = await get_music_b(i)
+            if count == 0:
+                df_range_music = df
+                count += 1
+            else:
+                df_range_music = pd.concat([df_range_music, df])
 
     #乱数の範囲を取得
     music_num = len(df_range_music)
@@ -107,9 +146,10 @@ async def match_host(ctx, user, kind):
     with open(os.environ["VS_DICT"], mode="r") as f:
         vs_dict = json.load(f)
     #対戦募集ボタンを表示
+    await ctx.response.defer()
     view = ui.VSHostButton(user, kind, timeout=120) #2分で募集を削除
-    await ctx.response.send_message(f"{ctx.user.mention}:Create {vs_dict[kind]} Room", view=view)
-
+    msg = await ctx.followup.send(f"{ctx.user.mention}:Create {vs_dict[kind]} Room", view=view)
+    await view.msg_send(msg)
     #対戦フラグをDataFrameに登録
     await state_chenge(user, True)
 
@@ -134,155 +174,14 @@ async def state_chenge(user:int, state:bool):
 async def Arcaea_ScoreBattle(ctx, host_id, guest_id, battle_type):
     """スコアバトルを行う関数"""
     #対戦を始める
-    try:
-        #ゲスト側の対戦ステータスを変更
-        await state_chenge(guest_id, True)
-        #ユーザーを取得
-        host_user = ctx.client.get_user(host_id)
-        guest_user = ctx.client.get_user(guest_id)
-
-        #対戦方式によって分岐
-        b_type = int(battle_type)
-        #1vs1対決
-        if b_type == 0 or b_type == 1:
-            try:
-                #対決を実行
-                thread, score1, score2, music_ls = await Singles_RandomScoreBattle(ctx, host_user, guest_user, b_type)
-            #終了を選ばれた時のみ対戦を終わらせてスレッドを閉じる
-            except TypeError:
-                return await ctx.followup.send(f"対戦が途中で終了されました。お疲れ様でした。")
-
-        #対戦方式によってスコア計算を分岐
-        if b_type == 0: #通常スコア対決
-            #得点を計算
-            winner, loser, player1_score, player2_score = await Score_Battle(score1, score2, host_user, guest_user)
-        elif b_type == 1: #EXスコア対決
-            #得点を計算
-            winner, loser, player1_score, player2_score, Drow_Flg = await EX_Score_Battle(score1, score2, host_user, guest_user)
-
-        #勝負形式を取得
-        if b_type == 0:
-            vs_format = "ScoreBattle"
-        else:
-            vs_format = "EXScoreBattle"
-
-        #名前を変数に
-        host_name = host_user.display_name
-        guest_name = guest_user.display_name
-
-        #勝敗をスレッドに表示
-        if player1_score == player2_score:
-            await thread.send(f"結果は両者 {player1_score:,} で引き分けです!!お疲れ様でした")
-            Drow_Flg = True
-            #表示用のリザルトを作成
-            result = f"[{vs_format}]\n"\
-                     f"・1曲目 {music_ls[0]}\n{host_name}：{int(score1[0]):,}\n{guest_name}：{int(score2[0]):,}\n"\
-                     f"・2曲目 {music_ls[1]}\n{host_name}：{int(score1[1]):,}\n{guest_name}：{int(score2[1]):,}\n"\
-                     f"・Total\n{host_name}：{player1_score:,}\n{guest_name}：{player2_score:,}\n\n"\
-                     f"Drow：{winner.display_name, loser.display_name}!!"
-
-        else:
-            await thread.send(f"{host_name}: {player1_score:,}\n{guest_name}: {player2_score:,}\n\n勝者は{winner.mention}さんでした!!お疲れ様でした!!")
-            Drow_Flg = False
-            #表示用のリザルトを作成
-            result = f"[{vs_format}]\n"\
-                     f"・1曲目 {music_ls[0]}\n{host_name}：{int(score1[0]):,}\n{guest_name}：{int(score2[0]):,}\n"\
-                     f"・2曲目 {music_ls[1]}\n{host_name}：{int(score1[1]):,}\n{guest_name}：{int(score2[1]):,}\n"\
-                     f"・Total\n{host_name}：{player1_score:,}\n{guest_name}：{player2_score:,}\n\n"\
-                     f"Winner：{winner.display_name}!!"
-
-        #csvファイルに保存
-        if b_type == 0: #通常スコア
-            log_path = os.environ["SCORE_LOG"]
-        else:           #EXスコア
-            log_path = os.environ["EXSCORE_LOG"]
-        df_log = pd.read_csv(log_path)
-        now_data = [[winner.id, loser.id, Drow_Flg]]
-        df_now = pd.DataFrame(now_data, columns=["Winner", "Loser", "Drow_Flg"])
-        df_log = pd.concat([df_log, df_now])
-        df_log.to_csv(log_path, index=False)
-
-        #ダブルス対決
-        #elif batlle_sys == 2:
-        #    try:
-        #        #対戦を実行
-        #        thread, team1, team2, users, music_ls =  await Doubles_RandomScoreBattle(client, message)
-        #    #終了を選ばれた時のみ対戦を終わらせてスレッドを閉じる
-        #    except TypeError:
-        #        return await message.reply(f"対戦が途中で終了されました。お疲れ様でした。")
-        #
-        #    #スコアを計算
-        #    winner, loser, team1_score, team2_score = await Score_Battle(team1, team2, users[0], users[2])
-        #
-        #    #メンションをUserIDに変換
-        #    winner_id = int(winner[2:-1])
-        #    loser_id = int(loser[2:-1])
-        #    team1_user_name1 = f"{client.get_user(int((users[0])[2:-1])).display_name},{client.get_user(int((users[1])[2:-1])).display_name}"
-        #    team2_user_name2 = f"{client.get_user(int((users[2])[2:-1])).display_name},{client.get_user(int((users[3])[2:-1])).display_name}"
-        #    #勝者チームの2人を取得
-        #    if winner == users[0]:
-        #        winner1 = users[0]
-        #        winner2 = users[1]
-        #    else:
-        #        winner1 = users[2]
-        #        winner2 = users[3]
-        #
-        #    #勝敗をスレッドに表示
-        #    if team1_score == team2_score:
-        #        await thread.send(f"結果は両チーム{team1_score} で引き分け!!お疲れ様!!!")
-        #        #表示用のリザルトを作成
-        #        result = f"[ScoreBattle(Team)]\n"\
-        #                 f"・1曲目 {music_ls[0]}\n"\
-        #                 f"{team1_user_name1}チーム：{int(team1[0]) + int(team1[1])}\n"\
-        #                 f"{team2_user_name2}チーム：{int(team2[0]) + int(team2[1])}\n"\
-        #                 f"・2曲目 {music_ls[1]}\n"\
-        #                 f"{team1_user_name1}チーム：{int(team1[2]) + int(team1[3])}\n"\
-        #                 f"{team2_user_name2}チーム：{int(team2[2]) + int(team2[3])}\n"\
-        #                 f"・Total\n{team1_user_name1}：{team1_score}\n"\
-        #                 f"{team2_user_name2}：{team2_score}\n"\
-        #                  "\n"\
-        #                 f"Drow：{team1_user_name1}チーム {team2_user_name2}チーム!"
-        #    else:
-        #        await thread.send(f"{users[0]}チーム: {team1_score}\n{users[2]}チーム: {team2_score}\n\n勝者は{winner1}, {winner2}チーム!!おめでとう!!お疲れ様!!")
-        #        #表示用のリザルトを作成
-        #        result = f"[ScoreBattle(Team)]]\n"\
-        #                 f"・1曲目 {music_ls[0]}\n"\
-        #                 f"{team1_user_name1}チーム：{int(team1[0]) + int(team1[1])}\n"\
-        #                 f"{team2_user_name2}チーム：{int(team2[0]) + int(team2[1])}\n"\
-        #                 f"・2曲目 {music_ls[1]}\n"\
-        #                 f"{team1_user_name1}チーム：{int(team1[2]) + int(team1[3])}\n"\
-        #                 f"{team2_user_name2}チーム：{int(team2[2]) + int(team2[3])}\n"\
-        #                 f"・Total\n{team1_user_name1}：{team1_score}\n"\
-        #                 f"{team2_user_name2}：{team2_score}\n"\
-        #                  "\n"\
-        #                 f"Winner：{client.get_user(int(winner1[2:-1])).display_name},{client.get_user(int(winner2[2:-1])).display_name}チーム!!"
-
-        #対戦結果をチャンネルに表示
-        await ctx.followup.send(result)
-
-        #対戦ステータスを変更
-        await state_chenge(host_user.id, False)
-        await state_chenge(guest_user.id, False)
-
-        #30秒後スレッドを閉じる
-        await asyncio.sleep(1) #間を空ける
-        await thread.send(f"このスレッドは30秒後、自働的に削除されます。")
-        await asyncio.sleep(30) #スレッド削除まで待機
-        await thread.delete() #スレッドを削除
-
-    #トラブルがおこった際に表示
-    except Exception as error:
-        print(type(error))
-        print(error.args)
-        await ctx.followup.send("タイムアウト、もしくはコマンド不備により対戦が終了されました。")
-        #対戦ステータスを変更
-        await state_chenge(host_user.id, False)
-        await state_chenge(guest_user.id, False)
-
-
-#1vs1で戦う時のフォーマット
-async def Singles_RandomScoreBattle(ctx, host_user, guest_user, EX_flg):
-    #勝負形式を取得
+    #ゲスト側の対戦ステータスを変更
+    await state_chenge(guest_id, True)
+    #ユーザーを取得
+    host_user = ctx.client.get_user(host_id)
+    guest_user = ctx.client.get_user(guest_id)
+    
+    #対戦形式を取得
+    EX_flg = int(battle_type)
     if EX_flg == 1:
         vs_format = "EXScoreBattle"
     else:
@@ -310,7 +209,7 @@ async def Singles_RandomScoreBattle(ctx, host_user, guest_user, EX_flg):
         b_stop = ui.VSStopbutton(host_user.id, guest_user.id, timeout=None)
 
         #メッセージを送信して難易度選択を待機
-        await ctx.response.send_message(an, delete_after=30)
+        await ctx.response.send_message(an)
         await thread.send(ms, view=b_stop)
         await thread.send(f"{host_user.mention}:Link Playのルームを作成して、ルームコードを入力してね")
         
@@ -326,7 +225,7 @@ async def Singles_RandomScoreBattle(ctx, host_user, guest_user, EX_flg):
         await asyncio.sleep(0.5) #インターバル
 
         #課題曲難易度選択のボタンを表示
-        view = ui.VSMusicDifChoice(host_user.id, guest_user.id, EX_flg, timeout=600)
+        view = ui.VSMusicDifChoice(thread, host_user.id, guest_user.id, EX_flg, timeout=600)
         await thread.send("難易度を選択してね!お互いがOKを押したら次に進むよ",view=view)
 
     #スレッド内でトラブルが起こったらスレッドを閉じる
@@ -342,7 +241,7 @@ async def Singles_RandomScoreBattle(ctx, host_user, guest_user, EX_flg):
 
 async def s_sb_selectlevel(ctx, host_user_id, guest_user_id, dif_ls, EX_flg):
     """レベル選択ボタンを表示"""
-    view = ui.VSMusicLevelChoice(host_user_id, guest_user_id, dif_ls, EX_flg, timeout=600)
+    view = ui.VSMusicLevelChoice(ctx.channel, host_user_id, guest_user_id, dif_ls, EX_flg, timeout=600)
     await ctx.followup.send("レベルを選択してね!お互いがOKを押したら次に進むよ",view=view)
 
 
@@ -353,7 +252,7 @@ async def s_sb_musicselect(ctx, host_user_id, guest_user_id, dif_ls, level_ls, E
     musicmsg = f"対戦曲:[{music}] {dif}:{level_str}!!"
     music = f"{music} {dif} {level_str}"
     #選択のボタンを表示
-    view = ui.VSMusicButton(host_user_id, guest_user_id, dif_ls, level_ls, music, EX_flg, Score_Count, timeout=600)
+    view = ui.VSMusicButton(ctx.channel, host_user_id, guest_user_id, dif_ls, level_ls, music, EX_flg, Score_Count, timeout=600)
     #課題曲を表示
     await ctx.channel.send(musicmsg, file=discord.File(image), view=view)
     await ctx.channel.send("お互いが選択したらゲームスタート!!")
@@ -375,12 +274,12 @@ async def s_sb_battle(ctx, host_user_id, guest_user_id, dif_ls, level_ls, music,
         guest_user =  ctx.client.get_user(guest_user_id)
 
         #一人目
-        result1 = s_sb_score_check(ctx=ctx, channel=channel, score_user=host_user, wait_user=guest_user, EX_flg=EX_flg)
+        result1 = await s_sb_score_check(ctx=ctx, channel=channel, score_user=host_user, wait_user=guest_user, EX_flg=EX_flg)
         if result1 is None:
             #タイムアウト処理が行われたので終了
             return
 
-        result2 = s_sb_score_check(ctx=ctx, channel=channel, score_user=guest_user, wait_user=host_user, EX_flg=EX_flg)
+        result2 = await s_sb_score_check(ctx=ctx, channel=channel, score_user=guest_user, wait_user=host_user, EX_flg=EX_flg)
         if result2 is None:
             #タイムアウト処理が行われたので終了
             return
@@ -457,9 +356,11 @@ async def s_sb_score_check(ctx, channel, score_user, wait_user, EX_flg):
     
     if EX_flg == False:
         #通常スコア
+        await channel.send(f"{score_user.mention}さんのスコアを入力してください。")
         result = await ctx.client.wait_for('message', check=check, timeout=600)
     else:
         #EXスコア
+        await channel.send(f"{score_user.mention}さんのスコアを入力してください。\n例:1430 1387 15 5(Pure,内部Pure,Far,Lost)")
         result = await ctx.client.wait_for('message', check=checkEX, timeout=600)
         
     #メッセージを受け取ったスレッドであるか、メンションされたユーザーからであるかを確認
@@ -489,7 +390,7 @@ async def s_sb_score_check(ctx, channel, score_user, wait_user, EX_flg):
                     await state_chenge(score_user.id, False)
                     await state_chenge(wait_user.id, False)
                     return #終わる
-                except discord.errors.NotFound:
+                except discord.HTTPException:
                     return #終わる
             else:
                 await asyncio.sleep(1)
@@ -499,18 +400,18 @@ async def s_sb_score_check(ctx, channel, score_user, wait_user, EX_flg):
             return result
         else:
             #やり直しを行う
-            s_sb_score_check(ctx, channel, score_user, wait_user)
+            return await s_sb_score_check(ctx, channel, score_user, wait_user, EX_flg)
     else:
         #他ユーザーからの反応は無視して再度入力を待つ
-        s_sb_score_check(ctx, channel, score_user, wait_user)
+        return await s_sb_score_check(ctx, channel, score_user, wait_user, EX_flg)
 
 
 async def s_sb_result(ctx, channel, host_user, guest_user, score1, score2, music_ls, b_type):
         #対戦方式によってスコア計算を分岐
-        if b_type == 0: #通常スコア対決
+        if b_type == False: #通常スコア対決
             #得点を計算
             winner, loser, player1_score, player2_score = await Score_Battle(score1, score2, host_user, guest_user)
-        elif b_type == 1: #EXスコア対決
+        else: #EXスコア対決
             #得点を計算
             winner, loser, player1_score, player2_score, Drow_Flg = await EX_Score_Battle(score1, score2, host_user, guest_user)
 
@@ -541,8 +442,8 @@ async def s_sb_result(ctx, channel, host_user, guest_user, score1, score2, music
                          f"・2曲目 {music_ls[1]}\n{host_name}：{int(score1[1]):,}\n{guest_name}：{int(score2[1]):,}\n"\
                          f"・Total\n{host_name}：{player1_score:,}\n{guest_name}：{player2_score:,}\n\n"\
                          f"Winner：{winner.display_name}!!"
-                
-        elif b_type == 1: #EXスコア対決
+                         
+        else: #EXスコア対決
             #EXスコアバトル
             vs_format = "EXScoreBattle"
             if sum(player1_score) == sum(player2_score):
@@ -578,7 +479,7 @@ async def s_sb_result(ctx, channel, host_user, guest_user, score1, score2, music
         df_log.to_csv(log_path, index=False)
 
         #対戦結果をチャンネルに表示
-        result_ch = await ctx.client.fetch_channel(int(os.environ["B_RESULT_CH"]))
+        result_ch = await ctx.client.fetch_channel(int(os.environ["BATTLE_CH"]))
         await result_ch.send(result)
 
         #対戦ステータスを変更
